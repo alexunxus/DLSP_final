@@ -1,6 +1,21 @@
 
 
 
+
+def corrupt_dataset(clean_dataset, mode, dst_path):
+    '''
+    clean_dataset: pytorch object
+    mode:     string, used to specify "l2, l1, ood, or l_infinity"
+    dst_path: string, the destination folder, the structure should be the same as 
+    # perform adversarial attack on the "test" dataset
+    folder structure:
+        dst_path
+        |--L2 - modified images
+        |--L1 - modified images
+        |--Linfty - modified images
+    '''
+    
+
 class CleanDataset:
 
     def __init__(self):
