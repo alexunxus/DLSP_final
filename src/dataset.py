@@ -1,7 +1,8 @@
+import numpy as np
+
 from torchvision.datasets import CIFAR10
 from torchvision import transforms
-
-from sklearn.model_selection import train_test_split
+from torch.utils.data import SubsetRandomSampler
 
 def corrupt_dataset(clean_dataset, mode, dst_path):
     '''
@@ -32,10 +33,20 @@ data_transforms = {
 
 random_state = 100
 
-def split_dataset():
-    data = CIFAR10("./data/cifar10/", train=True  ,download=True, transform=data_transforms['train'])
-    x_train, y_train, x_valid, y_valid = train_test_split(data, test_size=0.2, random_state=random_state)
-    return x_train, y_train, x_valid, y_valid
+def split_dataset(shuffle=True, valid_ratio = 0.2, random_seed=100):
+    dataset = CIFAR10("./data/cifar10/", train=True  ,download=True, transform=data_transforms['train'])
+    num_train = len(dataset)
+    indices = list(range(num_train))
+    split = int(np.floor(valid_ratio * num_train))
+
+    if shuffle:
+        np.random.seed(random_seed)
+        np.random.shuffle(indices)
+
+    train_idx, valid_idx = indices[split:], indices[:split]
+    train_sampler = SubsetRandomSampler(train_idx)
+    valid_sampler = SubsetRandomSampler(valid_idx)
+    return dataset, train_sampler, valid_sampler
 
 class CleanDataset:
 
