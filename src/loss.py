@@ -17,7 +17,7 @@ def constrastive_loss_func(contrastive_head, criterion, batchsize, n_views, temp
 
     device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
 
-    # labels.shape = (n_views, bathsize) -> (1, n_views, batch_size)
+    # labels.shape = (n_views * bathsize) -> (n_views * batch_size)
     labels = torch.cat([torch.arange(batchsize) for _ in range(n_views)], dim=0)
     labels = (labels.unsqueeze(0) == labels.unsqueeze(1)).float()
     labels = labels.to(device)

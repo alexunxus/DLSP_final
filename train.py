@@ -1,17 +1,18 @@
 from argparse import ArgumentParser
-from email.policy import default
-from gc import callbacks
+import numpy as np
 
 from src.model import WideResNet
 from src.pipeline import Trainer
 from src.dataset import CleanDataset
-from src.loss import cosine_sim_loss
+from src.loss import constrastive_loss_func
 from src.metrics import acc
 from src.callbacks import CheckpointCallback
 
 from torch.utils.data import DataLoader
 from torch import nn
 from torch.optim import Adam, SGD
+from torch.backends import cudnn
+import torch
 
 argparser = ArgumentParser()
 argparser.add_argument("--task", type=str, default="Clean",  help="task type: [Clean|SS], train clean classifier or self-supervised head")
@@ -20,6 +21,11 @@ argparser.add_argument("--batchsize", type=int, default=64)
 argparser.add_argument("--lr", type=float, default=3e-4)
 argparser.add_argument("--optim", type=str, default="Adam")
 
+
+## accelerate computation
+cudnn.benchmark = True
+torch.manual_seed(0)
+np.random.seed(0)
 
 if __name__ == "__main__":
     task = argparser.task
