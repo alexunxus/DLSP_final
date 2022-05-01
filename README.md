@@ -9,6 +9,8 @@ Train the clean classifier using wide-resnet34
 The weight can be downloaded by
 
 ```
+mkdir weight
+cd weight/
 wget https://cv.cs.columbia.edu/mcz/ICCVRevAttack/cifar10_rst_adv.pt.ckpt
 ```
 
