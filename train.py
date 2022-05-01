@@ -1,7 +1,8 @@
 from argparse import ArgumentParser
 import numpy as np
+import os
 
-from src.model import WideResNet
+from src.model import WideResNet, WideResNet_2, WRN34_out_branch
 from src.pipeline import Trainer
 from src.dataset import split_dataset
 from src.loss import constrastive_loss_func
@@ -12,14 +13,9 @@ from torch.utils.data import DataLoader
 from torch import nn
 from torch.optim import Adam, SGD
 from torch.backends import cudnn
+from torchvision import transforms
 import torch
 
-argparser = ArgumentParser()
-argparser.add_argument("--task",      type=str,   default="Clean",  help="task type: [Clean|SS], train clean classifier or self-supervised head")
-argparser.add_argument("--loss",      type=str,   default="Cosine", help="loss type: [Cosine|Dot]")
-argparser.add_argument("--batchsize", type=int,   default=64)
-argparser.add_argument("--lr",        type=float, default=1e-4)
-argparser.add_argument("--optim",     type=str,   default="Adam")
 
 
 ## accelerate computation
@@ -28,7 +24,16 @@ torch.manual_seed(0)
 np.random.seed(0)
 
 if __name__ == "__main__":
-    task = argparser.task
+    argparser = ArgumentParser()
+    argparser.add_argument("--task",      type=str,   default="SSL",  help="task type: [Clean|SSL], train clean classifier or self-supervised head")
+    argparser.add_argument("--loss",      type=str,   default="Cosine", help="loss type: [Cosine|Dot]")
+    argparser.add_argument("--batchsize", type=int,   default=64)
+    argparser.add_argument("--lr",        type=float, default=1e-4)
+    argparser.add_argument("--epochs",    type=int,   default=30)
+    argparser.add_argument("--optim",     type=str,   default="Adam")
+    args = argparser.parse_args()
+    
+    task = args.task
     if task not in ['Clean', "SS"]:
         raise ValueError(f"Unknown task {task}")
     if task == 'Clean':
@@ -49,20 +54,20 @@ if __name__ == "__main__":
 
         # optimizer
         if argparser.optim == 'Adam':
-            optim = Adam(model.parameters(), lr=argparser.lr, betas=[0.9, 0.99])
+            optim = Adam(model.parameters(), lr=args.lr, betas=[0.9, 0.99])
         elif argparser.optim == 'SGD':
-            optim = SGD(model.parameters(), lr=argparser.lr, momentum=0.9, weight_decay=0.01)
+            optim = SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.01)
         else:
-            raise ValueError(f"Unknown optimizer {argparser.optim}")
-
-        # scheduler
-        
+            raise ValueError(f"Unknown optimizer {args.optim}")
 
         # callbacks
         callbacks = [CheckpointCallback(filepath='./weight/clean.h5', monitor='val_loss', save_best_only=True)]
-        
+
+        # scheduler
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optim, [args.epochs//2, 3*args.epochs//4], gamma=0.1)
+
         # training
-        trainer = Trainer(model, model, criterion, optim, 10, 30, [acc], 
+        trainer = Trainer(model, model, criterion, optim, 10, args.epochs, [acc], scheduler = scheduler,
                           val_loader=valid_loader, log_path="/weight/clean.log", callbacks=callbacks)
         trainer.fit()
 
@@ -73,4 +78,29 @@ if __name__ == "__main__":
         # 1. build the model
         # 2. load the model weight from ./weight/clean.h5
         # 3. Load data from augmented loader
+
+        base_model = WideResNet_2(depth=28, widen_factor=10)
+        contrast_head = WRN34_out_branch()
+
+        state_dict_path = "./weight/cifar10_rst_adv.pt.ckpt"
+        if os.path.isfile(state_dict_path):
+            raise ValueError(f"Please ")
+        base_model.load_state_dict(torch.load())
+
+        # prepare dataset
+        cifar_train, train_sampler, _ = split_dataset()
+        
+        train_loader = DataLoader(cifar_train, batch_size=argparser.batchsize, sampler=train_sampler, shuffle=True, num_workers=4, pin_memory=True)
+        
+        transform = transforms.Compose([
+            transforms.RandomResizedCrop(size=32),
+            transforms.ColorJitter(brightness=0.8, contrast=0.8, saturation=0.8, hue=0.2),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomGrayscale(p=0.2)
+        ])
+        scripted_transform = torch.jit.script(transform)
+
+
+
+
         pass
