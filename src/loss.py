@@ -52,8 +52,8 @@ def contrastive_loss_func(output, criterion, batchsize, n_views, temperature=0.2
 
     contrast_loss = criterion(logits, labels)
 
-    correct = (logits.max(1)[1] == labels).sum().item()
-    return contrast_loss, correct
+    accuracy = (logits.max(1)[1] == labels).sum().item()/labels.shape[0]
+    return contrast_loss, accuracy
 
 
 def compute_contrastive_loss(x, base_model, contrastive_head, scripted_transforms, criterion,

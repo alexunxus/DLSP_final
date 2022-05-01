@@ -28,9 +28,9 @@ if __name__ == "__main__":
     argparser = ArgumentParser()
     argparser.add_argument("--task",      type=str,   default="SSL",  help="task type: [Clean|SSL], train clean classifier or self-supervised head")
     argparser.add_argument("--loss",      type=str,   default="Cosine", help="loss type: [Cosine|Dot]")
-    argparser.add_argument("--batchsize", type=int,   default=1024)
+    argparser.add_argument("--batchsize", type=int,   default=512)
     argparser.add_argument("--lr",        type=float, default=1e-4)
-    argparser.add_argument("--epochs",    type=int,   default=200)
+    argparser.add_argument("--epochs",    type=int,   default=50)
     argparser.add_argument("--optim",     type=str,   default="Adam")
     args = argparser.parse_args()
     
@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
         # training
         trainer = Trainer(train_loader, model, criterion, optim, 10, args.epochs, [acc], scheduler = scheduler,
-                          val_loader=valid_loader, log_path="/weight/clean.log", callbacks=callbacks)
+                          val_loader=valid_loader, log_path="./weight/clean.log", callbacks=callbacks)
         trainer.fit()
 
 
@@ -136,8 +136,9 @@ if __name__ == "__main__":
                                       epochs             = args.epochs, 
                                       metric_fns         = [], 
                                       scheduler          = scheduler,
-                                      log_path           = "/weight/train_ssl.log", 
-                                      callbacks          = callbacks)
+                                      log_path           = "./weight/train_ssl.log", 
+                                      callbacks          = callbacks,
+                                      verbose            = True)
         
         trainer.fit()
         

@@ -213,10 +213,10 @@ class Trainer:
             history['time'] = self.time_history
         
         if specify_path:
-            with open(self.specify_path, 'w') as f:
+            with open(self.specify_path, 'w+') as f:
                 json.dump(history, f)
         else:
-            with open(self.log_path, 'w') as f:
+            with open(self.log_path, 'w+') as f:
                 json.dump(history, f)
     
     def load_history(self, history_path):
@@ -247,6 +247,7 @@ class ContrastiveTrainer(Trainer):
         self.contrastive_head   = contrastive_head.to(self.device)
         self.loss_fn            = loss_fn
         self.scripted_transform = scripted_transform
+        self.history            = {"acc": [], "loss": []}
 
     def train_one_epoch(self, epoch):
         '''
