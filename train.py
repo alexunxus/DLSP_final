@@ -28,9 +28,9 @@ if __name__ == "__main__":
     argparser = ArgumentParser()
     argparser.add_argument("--task",      type=str,   default="SSL",  help="task type: [Clean|SSL], train clean classifier or self-supervised head")
     argparser.add_argument("--loss",      type=str,   default="Cosine", help="loss type: [Cosine|Dot]")
-    argparser.add_argument("--batchsize", type=int,   default=64)
+    argparser.add_argument("--batchsize", type=int,   default=1024)
     argparser.add_argument("--lr",        type=float, default=1e-4)
-    argparser.add_argument("--epochs",    type=int,   default=30)
+    argparser.add_argument("--epochs",    type=int,   default=200)
     argparser.add_argument("--optim",     type=str,   default="Adam")
     args = argparser.parse_args()
     
