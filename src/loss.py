@@ -8,10 +8,10 @@ def normal_guassian_normalize(T):
 def clamp(X, lower_limit = 0, upper_limit = 1):
     return torch.max(torch.min(X, upper_limit), lower_limit)
 
-def contrastive_loss_func(contrastive_head, criterion, batchsize, n_views, temperature=0.2):
+def contrastive_loss_func(output, criterion, batchsize, n_views, temperature=0.2):
     """ 
         Loss function for contrastive SSL learning
-        contrastive_head: (B*n_views, feature_size) Tensor
+        output:           (B*n_views, feature_size) Tensor
         criterion:        can said to be BCELoss
         batchsize:        int
         n_view:           number of augmentation perimage
@@ -19,21 +19,20 @@ def contrastive_loss_func(contrastive_head, criterion, batchsize, n_views, tempe
     """
     # if don't want cosine similarity but dot product,
     # then don't use l2 normalize here
-    features = F.normalize(contrastive_head, dim=1)
+    features = F.normalize(output, dim=1)
 
     device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
 
-    # labels.shape = (n_views * bathsize) -> (n_views * batch_size)
-    # labels: [1, 2, 3, ...., batchsize-1]
-    # labels.unsqueeze(0): [[1, 2, 3, ...., batchsize-1], 
-    #                       [1, 2, 3, ...., batchsize-1], ...]
-    # labels.unsqueeze(1): [[1, 1, 1, 1, ........], 
-    #                       [2, 2, 2, 2, ........],]
+    # target labels.shape = (n_views * batch_size, n_views * batch_size)
+    # labels: [1, 2, 3, ...., batchsize-1, 1, 2, 3, ..., batchsize-1, ...] shape(batchsize*n_views)
+    # labels.unsqueeze(0): [[1, 2, 3, ...., batchsize-1, 1, 2, 3, ...., batchsize-1, ....]]
+    # labels.unsqueeze(1): [[1], [2], [3], ...., [batchsize-1], [1], [2], [3], ...., [batchsize-1], ....]]
+    # compare: will be (batchsize * n_views, batchsize * n_views)
     labels = torch.cat([torch.arange(batchsize) for _ in range(n_views)], dim=0)
     labels = (labels.unsqueeze(0) == labels.unsqueeze(1)).float()
     labels = labels.to(device)
 
-    # similarity_matrix: shape (batch_size * batch_size)
+    # similarity_matrix: shape (batch_size * n_views,  batch_size * n_views)
     similarity_matrix = torch.matmul(features, features.T)
 
     mask              = torch.eye(labels.shape[0], dtype=torch.bool).to(device)
