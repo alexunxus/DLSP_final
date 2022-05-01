@@ -108,7 +108,7 @@ if __name__ == "__main__":
         scripted_transform = torch.jit.script(transform)
 
         # criterion
-        criterion = nn.BCELoss()
+        criterion = nn.CrossEntropyLoss()
 
         # optimizer
         if args.optim == 'Adam':
