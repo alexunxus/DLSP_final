@@ -3,11 +3,10 @@ import numpy as np
 import os
 
 from src.model import WideResNet, WideResNet_2, WRN34_out_branch
-from src.pipeline import Trainer
+from src.pipeline import Trainer, ContrastiveTrainer
 from src.dataset import split_dataset
-from src.loss import constrastive_loss_func
 from src.metrics import acc
-from src.callbacks import CheckpointCallback
+from src.callbacks import CheckpointCallback, ContrastiveCheckpointCallback
 
 from torch.utils.data import DataLoader
 from torch import nn
@@ -67,7 +66,7 @@ if __name__ == "__main__":
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optim, [args.epochs//2, 3*args.epochs//4], gamma=0.1)
 
         # training
-        trainer = Trainer(model, model, criterion, optim, 10, args.epochs, [acc], scheduler = scheduler,
+        trainer = Trainer(train_loader, model, criterion, optim, 10, args.epochs, [acc], scheduler = scheduler,
                           val_loader=valid_loader, log_path="/weight/clean.log", callbacks=callbacks)
         trainer.fit()
 
@@ -100,7 +99,33 @@ if __name__ == "__main__":
         ])
         scripted_transform = torch.jit.script(transform)
 
+        # criterion
+        criterion = nn.BCELoss()
 
+        # optimizer
+        if argparser.optim == 'Adam':
+            optim = Adam(contrast_head.parameters(), lr=args.lr, betas=[0.9, 0.99])
+        elif argparser.optim == 'SGD':
+            optim = SGD(contrast_head.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.01)
+        else:
+            raise ValueError(f"Unknown optimizer {args.optim}")
 
+        # scheduler
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optim, [args.epochs//2, 3*args.epochs//4], gamma=0.1)
 
-        pass
+        # callbacks
+        callbacks = [ContrastiveCheckpointCallback(filepath='./weight/contrastive_head.h5', monitor='loss', save_best_only=True)]
+
+        trainer =  ContrastiveTrainer(train_loader=train_loader, 
+                                      model       = None, 
+                                      criterion   = criterion, 
+                                      optim       = optim, 
+                                      n_class     = 10, 
+                                      epochs      = args.epochs, 
+                                      metrics     = [], 
+                                      scheduler   = scheduler,
+                                      log_path    = "/weight/train_ssl.log", 
+                                      callbacks   = callbacks)
+        
+        trainer.fit()
+        

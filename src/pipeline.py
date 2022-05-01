@@ -22,7 +22,7 @@ class Trainer:
             log_path    : path to save log info
             callbacks   : list of callback classes, should contain methods
                           "on_epoch_begin(), on_epoch_end()"
-            vervose     : print training bar
+            verbose     : print training bar
         '''
         
         self.train_loader = train_loader
@@ -237,3 +237,114 @@ class Trainer:
     
     def get_history(self):
         return self.history.copy()
+
+
+class ContrastiveTrainer(Trainer):
+
+    def __init__(self, base_model, contrastive_head, loss_fn, scripted_transform, *argc, **argv):
+        super().__init__(*argc, **argv)
+        self.base_model         = base_model
+        self.contrastive_head   = contrastive_head
+        self.loss_fn            = loss_fn
+        self.scripted_transform = scripted_transform
+
+    def train_one_epoch(self, epoch):
+        '''
+            Goal: train model for one epoch
+            Argument: epoch: int to help specify epoch in tqdm bar
+        '''
+        # training mode
+        self.base_model.train()
+        self.contrastive_head.train()
+        
+        # statistics
+        metrics  = {fn.__name__: 0 for fn in (self.metric_fns)}
+        acc_loss = 0 # accumulated loss
+        length   = len(self.train_loader)
+        
+        tbar = tqdm(enumerate(self.train_loader)) if self.verbose else enumerate(self.train_loader)
+        for i, (X, Y) in tbar:
+            i += 1
+            X, Y = X.to(self.device), Y.to(self.device)
+            
+            with torch.set_grad_enabled(True):
+                
+                loss, acc = self.loss_fn(X, self.base_model, self.contrastive_head, self.scripted_transform, 
+                                         self.criterion, n_views = 4, no_grad = True)
+
+                self.optim.zero_grad()
+                loss.backward()
+                self.optim.step()
+            
+            # update metrics
+            Y = Y.data
+            metrics['acc'] += acc.item()
+            acc_loss += loss.item()
+            
+            # logs
+            if self.verbose:
+                descr = f"[{epoch}][{i}/{len(self.train_loader)}] loss = {acc_loss/i:.4f}"
+                for key, val in metrics.items():
+                    descr += f", {key} = {val/i:.4f}"
+                tbar.set_description(descr)
+        
+        # on epoch end
+        for key, val in metrics.items():
+            self.history[key].append(val/length)
+        self.history['loss'].append(acc_loss/length)
+        
+        descr = f"[{epoch}/{self.epochs}] loss = {acc_loss/length:.4f}"
+        for key, val in metrics.items():
+            descr += f", {key} = {val/length:.4f}"
+        print(descr)
+    
+    def validate(self, loader, val=True):
+        '''
+            Args: 
+                loader: data loader can be validation or test loader
+                val:    True if is doing validation(log will be saved in Trainer's log dictionary) / False if doing test
+            Return:
+                return the test performance if val = False
+        '''
+        
+        # validation mode
+        self.base_model.eval()
+        self.contrastive_head.eval()
+        
+        # statistics
+        metrics  = {fn.__name__: 0 for fn in (self.metric_fns)}
+        length   = len(loader) # count number of batches
+        acc_loss = 0           # accumulated loss
+        
+        for i, (X, Y) in enumerate(loader):
+            i += 1
+            X, Y = X.to(self.device), Y.to(self.device)
+            with torch.no_grad():
+                loss, acc = self.loss_fn(X, self.base_model, self.contrastive_head, self.scripted_transform, 
+                                         self.criterion, n_views = 4, no_grad = True)
+
+            # update metrics
+            Y     = Y.data
+            metrics['acc'] += acc.item()
+            acc_loss += loss.item()
+        
+        if val:
+            for key, val in metrics.items():
+                self.history['val_'+key].append(val/length)
+            self.history['val_loss'].append(acc_loss/length)
+            # log
+            descr = f"[val]val_loss = {acc_loss/length:.4f}"
+            for key, val in metrics.items():
+                descr += f", val_{key} = {val/length:.4f}"
+            print(descr)
+        else: 
+            test_result = {'test_loss': acc_loss/length}
+            for key, val in metrics.items():
+                test_result["test_"+key] = val
+            # log
+            descr = f"[test]test_loss = {acc_loss/length:.4f}"
+            for key, val in metrics.items():
+                descr += f", test_{key} = {val/length:.4f}"
+            print(descr)
+            self.test_history = test_result
+            return test_result

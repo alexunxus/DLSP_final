@@ -81,7 +81,7 @@ def compute_contrastive_loss(x, base_model, contrastive_head, scripted_transform
     out = contrastive_head(out)
     contrastive_loss, acc = contrastive_loss_func(out, criterion, batch_size, n_views)
 
-    return contrastive_loss 
+    return contrastive_loss , acc
 
 
 

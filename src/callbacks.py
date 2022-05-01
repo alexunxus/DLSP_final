@@ -103,6 +103,50 @@ class CheckpointCallback:
                 self.best = latest
                 torch.save(self.ref_trainer.model.state_dict(), self.filepath)
         return True
+
+class ContrastiveCheckpointCallback:
+    
+    def __init__(self,
+                 filepath,
+                 monitor="loss",
+                 verbose=0,
+                 save_best_only=True):
+        self.filepath = filepath
+        self.monitor  = monitor
+        self.verbose  = verbose
+        self.save_best_only = save_best_only
+        self.mode     = None
+        if 'loss' in monitor:
+            self.mode = 'min'
+        elif 'acc' in monitor:
+            self.mode = 'max'
+        else:
+            self.mode = 'max'
+        self.ref_trainer = None
+        self.best = np.inf if self.mode == 'min' else -np.inf
+    
+    def hook_on_trainer(self, trainer):
+        self.ref_trainer = trainer
+        if self.monitor not in trainer.history.keys():
+            raise ValueError(f"Unseen monitor criterion {self.monitor}")
+    
+    def on_epoch_begin(self):
+        pass
+    
+    def on_epoch_end(self):
+        latest = self.ref_trainer.history[self.monitor][-1]
+        if not self.save_best_only:
+            torch.save(self.ref_trainer.contrastive_head.state_dict(), self.filepath)
+            return True
+        if self.mode == 'max':
+            if latest > self.best:
+                self.best = latest
+                torch.save(self.ref_trainer.contrastive_head.state_dict(), self.filepath)
+        else:
+            if latest < self.best:
+                self.best = latest
+                torch.save(self.ref_trainer.contrastive_head.state_dict(), self.filepath)
+        return True
             
 class TimeCallback:
     
