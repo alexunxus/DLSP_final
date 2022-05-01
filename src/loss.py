@@ -1,6 +1,5 @@
-from matplotlib.pyplot import axis
 import torch
-import torch.functional as F
+import torch.nn.functional as F
 
 
 def normal_guassian_normalize(T):
@@ -37,8 +36,8 @@ def contrastive_loss_func(contrastive_head, criterion, batchsize, n_views, tempe
     # similarity_matrix: shape (batch_size * batch_size)
     similarity_matrix = torch.matmul(features, features.T)
 
-    mask = torch.eye(labels.shape[0], dtype=torch.bool).to(device)
-    labels = labels[~mask].view(labels.shape[0], -1)
+    mask              = torch.eye(labels.shape[0], dtype=torch.bool).to(device)
+    labels            = labels[~mask].view(labels.shape[0], -1)
     similarity_matrix = similarity_matrix[~mask].view(similarity_matrix.shape[0], -1)
 
     # select and combine multiple positives
@@ -52,10 +51,10 @@ def contrastive_loss_func(contrastive_head, criterion, batchsize, n_views, tempe
 
     logits = logits / temperature
 
-    xcontrast_loss = criterion(logits, labels)
+    contrast_loss = criterion(logits, labels)
 
     correct = (logits.max(1)[1] == labels).sum().item()
-    return xcontrast_loss, correct
+    return contrast_loss, correct
 
 
 def compute_contrastive_loss(x, base_model, contrastive_head, scripted_transforms, criterion,

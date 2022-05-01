@@ -5,12 +5,22 @@ Team member:
 2. sm5116 Sujith Reddy Mammidi
 
 ## Part 1: Train the clean classifier
-Train the clean classifier using wide-resnet34
+Train the clean classifier using wide-resnet34  
+The weight can be downloaded by
+
+```
+wget https://cv.cs.columbia.edu/mcz/ICCVRevAttack/cifar10_rst_adv.pt.ckpt
+```
 
 ## Part 2: Create adversarial dataset
 Creating adversarial test datasets using pgd and Visualization
 
 ## Part 3: Train Clean Classifier and Self-Supervised Model
+Command:
+```
+python3 train.py --task SSL
+```
+
 Using different loss function   
 
 `TODO: should provide a graph`  

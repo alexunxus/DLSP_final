@@ -7,6 +7,8 @@ from src.pipeline import Trainer, ContrastiveTrainer
 from src.dataset import split_dataset
 from src.metrics import acc
 from src.callbacks import CheckpointCallback, ContrastiveCheckpointCallback
+from src.common import trim_dict
+from src.loss import compute_contrastive_loss
 
 from torch.utils.data import DataLoader
 from torch import nn
@@ -45,8 +47,8 @@ if __name__ == "__main__":
         # prepare dataset
         cifar_train, train_sampler, valid_sampler = split_dataset()
         
-        train_loader = DataLoader(cifar_train, batch_size=argparser.batchsize, sampler=train_sampler, shuffle=True, num_workers=4, pin_memory=True)
-        valid_loader = DataLoader(cifar_train, batch_size=argparser.batchsize, sampler=valid_sampler, shuffle=False, num_workers=4, pin_memory=True)
+        train_loader = DataLoader(cifar_train, batch_size=argparser.batchsize, sampler=train_sampler, num_workers=4, pin_memory=True)
+        valid_loader = DataLoader(cifar_train, batch_size=argparser.batchsize, sampler=valid_sampler, num_workers=4, pin_memory=True)
 
         # loss function
         criterion = nn.CrossEntropyLoss()
@@ -82,30 +84,36 @@ if __name__ == "__main__":
         contrast_head = WRN34_out_branch()
 
         state_dict_path = "./weight/cifar10_rst_adv.pt.ckpt"
-        if os.path.isfile(state_dict_path):
-            raise ValueError(f"Please ")
-        base_model.load_state_dict(torch.load())
+        if not os.path.isfile(state_dict_path):
+            raise ValueError(f"Please download the model weight from https://cv.cs.columbia.edu/mcz/ICCVRevAttack/cifar10_rst_adv.pt.ckpt")
+        loaded_info = torch.load(state_dict_path)
+        n_classes   = loaded_info['num_classes']
+        state_dict  = loaded_info['state_dict']
+        # trim state dict here:
+        state_dict = trim_dict(state_dict)
+        base_model.load_state_dict(state_dict)
+        
 
         # prepare dataset
         cifar_train, train_sampler, _ = split_dataset()
         
-        train_loader = DataLoader(cifar_train, batch_size=argparser.batchsize, sampler=train_sampler, shuffle=True, num_workers=4, pin_memory=True)
+        train_loader = DataLoader(cifar_train, batch_size=args.batchsize, sampler=train_sampler, num_workers=4, pin_memory=True)
         
-        transform = transforms.Compose([
+        transform = torch.nn.Sequential(
             transforms.RandomResizedCrop(size=32),
             transforms.ColorJitter(brightness=0.8, contrast=0.8, saturation=0.8, hue=0.2),
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomGrayscale(p=0.2)
-        ])
+        )
         scripted_transform = torch.jit.script(transform)
 
         # criterion
         criterion = nn.BCELoss()
 
         # optimizer
-        if argparser.optim == 'Adam':
+        if args.optim == 'Adam':
             optim = Adam(contrast_head.parameters(), lr=args.lr, betas=[0.9, 0.99])
-        elif argparser.optim == 'SGD':
+        elif args.optim == 'SGD':
             optim = SGD(contrast_head.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.01)
         else:
             raise ValueError(f"Unknown optimizer {args.optim}")
@@ -116,16 +124,20 @@ if __name__ == "__main__":
         # callbacks
         callbacks = [ContrastiveCheckpointCallback(filepath='./weight/contrastive_head.h5', monitor='loss', save_best_only=True)]
 
-        trainer =  ContrastiveTrainer(train_loader=train_loader, 
-                                      model       = None, 
-                                      criterion   = criterion, 
-                                      optim       = optim, 
-                                      n_class     = 10, 
-                                      epochs      = args.epochs, 
-                                      metrics     = [], 
-                                      scheduler   = scheduler,
-                                      log_path    = "/weight/train_ssl.log", 
-                                      callbacks   = callbacks)
+        trainer =  ContrastiveTrainer(train_loader       =train_loader, 
+                                      model              = None, 
+                                      base_model         = base_model,
+                                      contrastive_head   = contrast_head,
+                                      loss_fn            = compute_contrastive_loss,
+                                      scripted_transform = scripted_transform,
+                                      criterion          = criterion, 
+                                      optim              = optim, 
+                                      nclass             = n_classes, 
+                                      epochs             = args.epochs, 
+                                      metric_fns         = [], 
+                                      scheduler          = scheduler,
+                                      log_path           = "/weight/train_ssl.log", 
+                                      callbacks          = callbacks)
         
         trainer.fit()
         

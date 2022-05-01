@@ -29,7 +29,7 @@ class Trainer:
         self.val_loader  = val_loader
         
         self.device    = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
-        self.model     = model.to(self.device)
+        self.model     = model.to(self.device) if model is not None else None
         
         self.criterion = criterion
         self.optim     = optim
@@ -243,8 +243,8 @@ class ContrastiveTrainer(Trainer):
 
     def __init__(self, base_model, contrastive_head, loss_fn, scripted_transform, *argc, **argv):
         super().__init__(*argc, **argv)
-        self.base_model         = base_model
-        self.contrastive_head   = contrastive_head
+        self.base_model         = base_model.to(self.device)
+        self.contrastive_head   = contrastive_head.to(self.device)
         self.loss_fn            = loss_fn
         self.scripted_transform = scripted_transform
 
