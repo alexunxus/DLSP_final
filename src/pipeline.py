@@ -258,7 +258,7 @@ class ContrastiveTrainer(Trainer):
         self.contrastive_head.train()
         
         # statistics
-        metrics  = {fn.__name__: 0 for fn in (self.metric_fns)}
+        metrics  = {'acc': 0}
         acc_loss = 0 # accumulated loss
         length   = len(self.train_loader)
         
@@ -278,7 +278,7 @@ class ContrastiveTrainer(Trainer):
             
             # update metrics
             Y = Y.data
-            metrics['acc'] += acc.item()
+            metrics['acc'] += acc
             acc_loss += loss.item()
             
             # logs
@@ -325,7 +325,7 @@ class ContrastiveTrainer(Trainer):
 
             # update metrics
             Y     = Y.data
-            metrics['acc'] += acc.item()
+            metrics['acc'] += acc
             acc_loss += loss.item()
         
         if val:
