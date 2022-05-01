@@ -42,10 +42,10 @@ def contrastive_loss_func(contrastive_head, criterion, batchsize, n_views, tempe
 
     # select and combine multiple positives
     positives = similarity_matrix[labels.bool()].view(labels.shape[0], -1)
-
+    
     # select only the negatives the negatives
     negatives = similarity_matrix[~labels.bool()].view(similarity_matrix.shape[0], -1)
-
+    
     logits = torch.cat([positives, negatives], dim=1)
     labels = torch.zeros(logits.shape[0], dtype=torch.long).to(device)
 
