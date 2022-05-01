@@ -33,7 +33,7 @@ if __name__ == "__main__":
     args = argparser.parse_args()
     
     task = args.task
-    if task not in ['Clean', "SS"]:
+    if task not in ['Clean', "SSL"]:
         raise ValueError(f"Unknown task {task}")
     if task == 'Clean':
         # 1. train clean classifier here
