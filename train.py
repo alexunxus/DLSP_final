@@ -42,7 +42,7 @@ if __name__ == "__main__":
         # 2. save the model at ./weight/clean.h5
         
         # prepare model
-        model = WideResNet(depth=16, num_classes=10)
+        model = WideResNet_2(depth=28, num_classes=10)
 
         # prepare dataset
         cifar_train, train_sampler, valid_sampler = split_dataset()
