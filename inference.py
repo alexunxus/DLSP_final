@@ -5,7 +5,7 @@ import numpy as np
 
 from src.model import WideResNet_2
 from src.common import trim_dict
-from src.dataset import CleanDataset
+from src.dataset import CleanDataset, get_clean_test
 
 import torch
 from torch.utils.data import DataLoader
@@ -13,13 +13,13 @@ import torch.nn as nn
 
 if __name__ == '__main__':
     argparser = ArgumentParser()
-    argparser.add_argument('--task', type=str, help="task type: [default|SSL]")
-    argparser.add_argument("--norm", type=str, default="l2", help='norm type: [l_1|l_2|l_inf]')
+    argparser.add_argument('--task', type=str, default="default", help="task type: [default|SSL]")
+    argparser.add_argument("--norm", type=str, default="l_2", help='norm type: [clean|l_1|l_2|l_inf]')
     argparser.add_argument("--iter", type=int, default=5, help="number of SSL iteration: [5|10|15]")
     argparser.add_argument("--batchsize", type=int, default=512)
     args = argparser.parse_args()
 
-    base_model = WideResNet_2(depth=28, widen_factor=10)
+    base_model = WideResNet_2(depth=28, widen_factor=10, single=True)
     state_dict_path = "./weight/cifar10_rst_adv.pt.ckpt"
     
     if not os.path.isfile(state_dict_path):
@@ -31,15 +31,20 @@ if __name__ == '__main__':
     # trim state dict here:
     state_dict = trim_dict(state_dict)
     base_model.load_state_dict(state_dict)
-
+    
     # prepare test data here
-    data_base_dir = f"data/Perturbed_data/{args.norm}/"
-    test_x = np.load(os.path.join(data_base_dir, f"Test_perturbed_X_{args.norm}_{args.iter}.npy"))
-    test_y = np.load(os.path.join(data_base_dir, f"Test_perturbed_y_{args.norm}_{args.iter}.npy"))
+    if args.norm == 'clean':
+        test_dataset = get_clean_test()
+        test_loader  = DataLoader(test_dataset, batch_size= args.batchsize, shuffle=False, pin_memory=True, num_workers=4)
+    else:
+        data_base_dir = f"data/Perturbed_data/{args.norm}/"
+        test_x = np.load(os.path.join(data_base_dir, f"Test_perturbed_X_{args.norm}_{args.iter}.npy"))
+        test_y = np.load(os.path.join(data_base_dir, f"Test_perturbed_y_{args.norm}_{args.iter}.npy"))
 
-    test_dataset = CleanDataset(X= test_x, y = test_y)
-    test_loader  = DataLoader(test_dataset, batch_size= args.batchsize, shuffle=False, pin_memory=True, num_workers=4)
-
+        test_dataset = CleanDataset(X= test_x, y = test_y)
+        test_loader  = DataLoader(test_dataset, batch_size= args.batchsize, shuffle=False, pin_memory=True, num_workers=4)
+    print(len(test_dataset))
+        
     criterion = nn.CrossEntropyLoss()
 
     task = args.task
@@ -60,11 +65,11 @@ if __name__ == '__main__':
             with torch.no_grad():
                 pred = base_model(x)
                 loss = criterion(pred, y)
-
-                _, out = torch.max(pred)
-                test_acc += (out == y).item()
-                test_loss += loss.item()
-                counter += pred.shape[0]
+                
+                _, out = torch.max(pred, dim=-1)
+                test_acc  += (out == y).sum().item()
+                test_loss += loss.item()*pred.shape[0]
+                counter   += pred.shape[0]
             
         test_loss /= counter
         test_acc  /= counter

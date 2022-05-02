@@ -18,16 +18,18 @@ def corrupt_dataset(clean_dataset, mode, dst_path):
     '''
     
 # preprocess data
-normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])
+#normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+#                                 std=[0.229, 0.224, 0.225])
+
 data_transforms = {
     'train': transforms.Compose([
+        transforms.Pad(4), 
         transforms.ToTensor(),
-        normalize,
+        # normalize,
     ]),
     'valid': transforms.Compose([
         transforms.ToTensor(),
-        normalize,
+        # normalize,
     ]),
 }
 
@@ -47,6 +49,11 @@ def split_dataset(shuffle=True, valid_ratio = 0.2, random_seed=100):
     train_sampler = SubsetRandomSampler(train_idx)
     valid_sampler = SubsetRandomSampler(valid_idx)
     return dataset, train_sampler, valid_sampler
+
+def get_clean_test():
+    dataset = CIFAR10("./data/cifar10/", train=False  ,download=True, transform=data_transforms['valid'])
+    return dataset
+
 
 class CleanDataset:
 
