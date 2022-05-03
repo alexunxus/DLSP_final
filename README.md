@@ -25,6 +25,22 @@ Command:
 python3 train.py --task SSL
 ```
 
+## Part 4: Inference without SSL:
+```
+python3 inference.py --norm clean
+python3 inference.py --norm l_1
+python3 inference.py --norm l_2
+python3 inference.py --norm l_inf
+```
+
+Result: 
+| Perturbation | Accuracy (%) | Test Loss |
+|--------------|--------------|-----------|
+| Clean        | 87.52        | 0.5812    |
+| L1           | 70.47        | 0.8985    |
+| L2           | 10.58        | 5.0381    |
+| Linf         | 6.66         | 4.3066    |
+
 Using different loss function   
 
 `TODO: should provide a graph`  
