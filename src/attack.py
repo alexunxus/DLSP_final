@@ -85,7 +85,7 @@ def attack_pgd_main(args):
     test_set = list(zip(cifar_test['data'] / 255., cifar_test['labels']))
 
     # save path
-    base_path = os.path.join(args.savepath, f"{args.norm}/")
+    base_path = os.path.join(args.savepath, f"{args.attack_type}/{args.norm}/")
     if not os.path.isdir(base_path):
         os.makedirs(base_path)
     
@@ -119,23 +119,21 @@ def attack_pgd_main(args):
                            early_stop=args.eval)
         all_delta.append(delta)
         new_test.append(new)
-        print("Done with :", (i+1)*64)
     testX = torch.cat(testX, dim = 0)
     testy = torch.cat(testy, dim = 0)
     all_delta = torch.cat(all_delta, dim = 0)
     new_test = torch.cat(new_test, dim = 0)
 
     # save data
-    np.save(os.path.join(base_path, f"Test_perturbed_X_{args.norm}_{args.attack_iters}.npy"), new_test.to('cpu')) 
-    np.save(os.path.join(base_path, f"Test_perturbed_y_{args.norm}_{args.attack_iters}.npy"), testy.to('cpu')) 
+    np.save(os.path.join(base_path, f"test_perturbed_X_{args.norm}_{args.attack_iters}.npy"), new_test.to('cpu')) 
+    np.save(os.path.join(base_path, f"test_perturbed_y_{args.norm}_{args.attack_iters}.npy"), testy.to('cpu')) 
 
 if __name__ == "__main__":
     argparser = ArgumentParser()
     argparser.add_argument('--epsilon', default=8, type=int)
+    argparser.add_argument('--attack_type', default='pgd', type=str, choices=['pgd', 'cw'])
     argparser.add_argument('--attack-iters', default=10, type=int)
     argparser.add_argument('--pgd-alpha', default=2, type=float)
-    argparser.add_argument('--l2', default=0, type=float)
-    argparser.add_argument('--l1', default=0, type=float)
     argparser.add_argument('--batch-size', default=1024, type=int)
     argparser.add_argument('--restarts', default=1, type=int)
     argparser.add_argument('--norm', default='l_2', type=str, choices=['l_inf', 'l_2', 'l_1'])
