@@ -49,7 +49,6 @@ if __name__ == '__main__':
 
         test_dataset = CleanDataset(X= test_x, y = test_y)
         test_loader  = DataLoader(test_dataset, batch_size= args.batchsize, shuffle=False, pin_memory=True, num_workers=4)
-    print(len(test_dataset))
     
     # criterion
     criterion = nn.CrossEntropyLoss()
@@ -109,6 +108,7 @@ if __name__ == '__main__':
         test_acc  = 0
         counter   = 0
 
+        print("Start SSL inference")
         for x, y in test_loader:
             x = x.to(device, non_blocking=True)
             y = y.to(device, non_blocking=True)
