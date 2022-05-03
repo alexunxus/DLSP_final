@@ -2,21 +2,27 @@ from email.mime import base
 import os
 from argparse import ArgumentParser
 import numpy as np
+from loss import clamp
 
-from src.model import WideResNet_2
+from src.model import WideResNet_2, WRN34_out_branch
 from src.common import trim_dict
 from src.dataset import CleanDataset, get_clean_test
+from src.reverse_attack import reverse_pgd
 
 import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
+from torchvision import transforms
 
 if __name__ == '__main__':
     argparser = ArgumentParser()
     argparser.add_argument('--task', type=str, default="default", help="task type: [default|SSL]")
     argparser.add_argument("--norm", type=str, default="l_2", help='norm type: [clean|l_1|l_2|l_inf]')
     argparser.add_argument("--iter", type=int, default=5, help="number of SSL iteration: [5|10|15]")
-    argparser.add_argument("--batchsize", type=int, default=512)
+    argparser.add_argument("--batchsize",   type=int, default=512)
+    argparser.add_argument("--attack_iter", type=int, default=10)
+    argparser.add_argument("--epsilon",     type=int, default=8)
+    argparser.add_argument("--alpha",       type=int, default=2)
     args = argparser.parse_args()
 
     base_model = WideResNet_2(depth=28, widen_factor=10, single=True)
@@ -44,15 +50,18 @@ if __name__ == '__main__':
         test_dataset = CleanDataset(X= test_x, y = test_y)
         test_loader  = DataLoader(test_dataset, batch_size= args.batchsize, shuffle=False, pin_memory=True, num_workers=4)
     print(len(test_dataset))
-        
+    
+    # criterion
     criterion = nn.CrossEntropyLoss()
+
+    # device
+    device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
 
     task = args.task
     if task not in ['default', 'SSL']:
         raise ValueError(f"Unknown task {task}")
     if task == 'default':
         # doing inference without self-supervised head
-        device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
         base_model = base_model.to(device)
         
         test_loss = 0
@@ -66,7 +75,7 @@ if __name__ == '__main__':
                 pred = base_model(x)
                 loss = criterion(pred, y)
                 
-                _, out = torch.max(pred, dim=-1)
+                _, out    = torch.max(pred, dim=-1)
                 test_acc  += (out == y).sum().item()
                 test_loss += loss.item()*pred.shape[0]
                 counter   += pred.shape[0]
@@ -77,4 +86,57 @@ if __name__ == '__main__':
         print(f"Test[{args.norm}][{args.iter}] loss = {test_loss:.4f}, acc = {test_acc*100:.2f}")
     else:
         # perform inference with self-supervision
-        pass
+        contrastive_head = WRN34_out_branch()
+        head_state_path = './weight/contrastive_head.h5'
+        contrastive_head.load_state_dict(torch.load(head_state_path))
+        contrastive_head = contrastive_head.to(device)
+        
+        # script transform
+        transform = torch.nn.Sequential(
+            transforms.RandomResizedCrop(size=32),
+            transforms.ColorJitter(brightness=0.8, contrast=0.8, saturation=0.8, hue=0.2),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomGrayscale(p=0.2)
+        )
+        scripted_transforms = torch.jit.script(transform)
+
+        # hyperparameter
+        epsilon      = args.epsilon/255.
+        alpha        = args.alpha/255.
+        attack_iters = args.attack_iter
+
+        test_loss = 0
+        test_acc  = 0
+        counter   = 0
+
+        for x, y in test_loader:
+            x = x.to(device, non_blocking=True)
+            y = y.to(device, non_blocking=True)
+
+            r_delta = reverse_pgd(base_model, 
+                                  contrastive_head, 
+                                  scripted_transforms, 
+                                  criterion,
+                                  x,
+                                  epsilon, 
+                                  alpha, 
+                                  attack_iters, 
+                                  norm='l_2', 
+                                  n_views=2)
+            
+            x = x + r_delta
+            x = clamp(x, 0, 1)
+
+            with torch.no_grad():
+                pred = base_model(x)
+                loss = criterion(pred, y)
+                
+                _, out    = torch.max(pred, dim=-1)
+                test_acc  += (out == y).sum().item()
+                test_loss += loss.item()*pred.shape[0]
+                counter   += pred.shape[0]
+            
+        test_loss /= counter
+        test_acc  /= counter
+
+        print(f"Reverse Attack Test[{args.norm}][{args.iter}] loss = {test_loss:.4f}, acc = {test_acc*100:.2f}")
