@@ -1,21 +1,17 @@
 import os
 from argparse import ArgumentParser
 import numpy as np
-from model import WideResNet_2,WRN34_out_branch
-import numpy as np
-import torch
-from torch import nn
-import torchvision
 
 from common import trim_dict, clamp, Batches
+from model import WideResNet_2
 
 import torch
+import torchvision
 import torch.nn.functional as F
-
+from torch import nn
 
 def attack_pgd(model, X, y, epsilon, alpha, attack_iters, restarts,
-               norm, early_stop=False,
-               mixup=False):
+               norm, early_stop=False, mixup=False):
     upper_limit, lower_limit = 1, 0
     max_loss = torch.zeros(y.shape[0]).cuda()
     max_delta = torch.zeros_like(X).cuda()
@@ -78,6 +74,7 @@ def attack_pgd_main(args):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # prepare test dataset
     test_set = torchvision.datasets.CIFAR10(root="./data/cifar10/", 
                                             train=False, download=True)
     
@@ -86,7 +83,13 @@ def attack_pgd_main(args):
     cifar_test['data'] = torch.moveaxis(cifar_test['data'],-1,1)
     
     test_set = list(zip(cifar_test['data'] / 255., cifar_test['labels']))
+
+    # save path
+    base_path = os.path.join(args.savepath, f"{args.norm}/")
+    if not os.path.isdir(base_path):
+        os.makedirs(base_path)
     
+    # prepare model
     test_batches = Batches(test_set, 64, shuffle=False, num_workers=2)
     base_model = WideResNet_2(depth=28, widen_factor=10)
     state_dict_path = "./weight/cifar10_rst_adv.pt.ckpt"
@@ -100,6 +103,10 @@ def attack_pgd_main(args):
     base_model.load_state_dict(state_dict)
     base_model = base_model.to(device)
     
+    # attack pipeline
+    epsilon   = args.epsilon/255.
+    pgd_alpha = args.pgd_alpha/255.
+
     all_delta = []
     testX = []
     testy = []
@@ -108,7 +115,7 @@ def attack_pgd_main(args):
         X,y = batch['input'],batch['target']
         testX.append(X)
         testy.append(y)
-        delta,new = attack_pgd(base_model, X, y, args.epsilon, args.pgd_alpha, args.attack_iters, args.restarts, args.norm,
+        delta,new = attack_pgd(base_model, X, y, epsilon, pgd_alpha, args.attack_iters, args.restarts, args.norm,
                            early_stop=args.eval)
         all_delta.append(delta)
         new_test.append(new)
@@ -118,10 +125,7 @@ def attack_pgd_main(args):
     all_delta = torch.cat(all_delta, dim = 0)
     new_test = torch.cat(new_test, dim = 0)
 
-    base_path = os.path.join(args.savepath, f"{args.norm}/")
-    if not os.path.isdir(base_path):
-        os.makedirs(base_path)
-
+    # save data
     np.save(os.path.join(base_path, f"Test_perturbed_X_{args.norm}_{args.attack_iters}.npy"), new_test.to('cpu')) 
     np.save(os.path.join(base_path, f"Test_perturbed_y_{args.norm}_{args.attack_iters}.npy"), testy.to('cpu')) 
 
@@ -139,5 +143,5 @@ if __name__ == "__main__":
     argparser.add_argument('--eval', action='store_true')
     argparser.add_argument('--savepath', type=str, default="./data/")
     args = argparser.parse_args()
-    print(args.epsilon/255., args.pgd_alpha/255., args.attack_iters, args.restarts, args.norm,args.eval)
+    print(args.epsilon, args.pgd_alpha, args.attack_iters, args.restarts, args.norm,args.eval)
     attack_pgd_main(args)
