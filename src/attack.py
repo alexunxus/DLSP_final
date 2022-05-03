@@ -11,12 +11,16 @@ import torch.nn.functional as F
 from torch import nn
 
 def attack_pgd(model, X, y, epsilon, alpha, attack_iters, restarts,
-               norm, early_stop=False, mixup=False):
+               norm, device, early_stop=False, mixup=False):
+    
     upper_limit, lower_limit = 1, 0
-    max_loss = torch.zeros(y.shape[0]).cuda()
-    max_delta = torch.zeros_like(X).cuda()
+    max_loss = torch.zeros(y.shape[0]).to(device)
+    max_delta = torch.zeros_like(X).to(device)
+
     for _ in range(restarts):
-        delta = torch.zeros_like(X).cuda()
+        
+        # prepare delta
+        delta = torch.zeros_like(X).to(device)
         if norm == "l_inf":
             delta.uniform_(-epsilon, epsilon)
         elif norm == "l_2":
@@ -31,7 +35,9 @@ def attack_pgd(model, X, y, epsilon, alpha, attack_iters, restarts,
             raise ValueError
         delta = clamp(delta, lower_limit - X, upper_limit - X)
         delta.requires_grad = True
-        for _ in range(attack_iters):
+        
+        # attack
+        for i in range(attack_iters):
             output, _ = model(X+delta)
             if early_stop:
                 index = torch.where(output.max(1)[1] == y)[0]
@@ -46,9 +52,12 @@ def attack_pgd(model, X, y, epsilon, alpha, attack_iters, restarts,
                 loss = F.cross_entropy(output, y)
             loss.backward()
             grad = delta.grad.detach()
+            
+            # modify gradient value to make it epsilon bounded
             d = delta[index, :, :, :]
             g = grad[index, :, :, :]
             x = X[index, :, :, :]
+            
             if norm == "l_inf":
                 d = torch.clamp(d + alpha * torch.sign(g), min=-epsilon, max=epsilon)
             elif norm == "l_2":
@@ -60,6 +69,7 @@ def attack_pgd(model, X, y, epsilon, alpha, attack_iters, restarts,
                 scaled_g = g / (g_norm + 1e-10)
                 d = (d + scaled_g * alpha).view(d.size(0), -1).renorm(p=1, dim=0, maxnorm=epsilon).view_as(d)
 
+            # assign corrected delta and gradient
             d = clamp(d, lower_limit - x, upper_limit - x)
             delta.data[index, :, :, :] = d
             delta.grad.zero_()
@@ -67,10 +77,10 @@ def attack_pgd(model, X, y, epsilon, alpha, attack_iters, restarts,
         all_loss = F.cross_entropy(model(X+delta)[0], y, reduction='none')
         max_delta[all_loss >= max_loss] = delta.detach()[all_loss >= max_loss]
         max_loss = torch.max(max_loss, all_loss)
-    return max_delta, X+max_delta
+    return X+max_delta
 
 
-def attack_pgd_main(args):
+def attack_pgd_main(args, norm):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -85,7 +95,7 @@ def attack_pgd_main(args):
     test_set = list(zip(cifar_test['data'] / 255., cifar_test['labels']))
 
     # save path
-    base_path = os.path.join(args.savepath, f"{args.attack_type}/{args.norm}/")
+    base_path = os.path.join(args.savepath, f"{args.attack_type}/{norm}/")
     if not os.path.isdir(base_path):
         os.makedirs(base_path)
     
@@ -107,38 +117,39 @@ def attack_pgd_main(args):
     epsilon   = args.epsilon/255.
     pgd_alpha = args.pgd_alpha/255.
 
-    all_delta = []
     testX = []
     testy = []
-    new_test = []
+    new_test = {i: [] for i in np.arange(0, args.attack_iters, 5)}
     for i, batch in enumerate(test_batches):
         X,y = batch['input'],batch['target']
         testX.append(X)
         testy.append(y)
-        delta,new = attack_pgd(base_model, X, y, epsilon, pgd_alpha, args.attack_iters, args.restarts, args.norm,
-                           early_stop=args.eval)
-        all_delta.append(delta)
-        new_test.append(new)
+        new_x = attack_pgd(base_model, X, y, epsilon, pgd_alpha, args.attack_iters, args.restarts, norm,
+                           early_stop=args.eval, device=device)
+        new_test.append(new_x)
     testX = torch.cat(testX, dim = 0)
     testy = torch.cat(testy, dim = 0)
-    all_delta = torch.cat(all_delta, dim = 0)
-    new_test = torch.cat(new_test, dim = 0)
+    new_test  = torch.cat(new_test, dim = 0)
 
     # save data
-    np.save(os.path.join(base_path, f"test_perturbed_X_{args.norm}_{args.attack_iters}.npy"), new_test.to('cpu')) 
-    np.save(os.path.join(base_path, f"test_perturbed_y_{args.norm}_{args.attack_iters}.npy"), testy.to('cpu')) 
+    np.save(os.path.join(base_path, f"test_perturbed_X_{norm}_{args.attack_iters}.npy"), new_test.to('cpu')) 
+    np.save(os.path.join(base_path, f"test_perturbed_y_{norm}_{args.attack_iters}.npy"), testy.to('cpu')) 
 
 if __name__ == "__main__":
     argparser = ArgumentParser()
     argparser.add_argument('--epsilon', default=8, type=int)
     argparser.add_argument('--attack_type', default='pgd', type=str, choices=['pgd', 'cw'])
-    argparser.add_argument('--attack-iters', default=10, type=int)
+    argparser.add_argument('--attack_iters', default=10, type=int)
     argparser.add_argument('--pgd-alpha', default=2, type=float)
-    argparser.add_argument('--batch-size', default=1024, type=int)
+    argparser.add_argument('--batch_size', default=1024, type=int)
     argparser.add_argument('--restarts', default=1, type=int)
-    argparser.add_argument('--norm', default='l_2', type=str, choices=['l_inf', 'l_2', 'l_1'])
+    argparser.add_argument('--norm', default='l_2', type=str, choices=['all', 'l_inf', 'l_2', 'l_1'])
     argparser.add_argument('--eval', action='store_true')
     argparser.add_argument('--savepath', type=str, default="./data/")
     args = argparser.parse_args()
     print(args.epsilon, args.pgd_alpha, args.attack_iters, args.restarts, args.norm,args.eval)
-    attack_pgd_main(args)
+    
+    if args.norm == 'all':
+        for norm in ['l_inf', 'l_2', 'l_1']:
+            attack_pgd_main(args, norm)
+    

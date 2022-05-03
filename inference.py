@@ -7,7 +7,7 @@ from tqdm import tqdm
 from src.model import WideResNet_2, WRN34_out_branch
 from src.common import trim_dict
 from src.dataset import CleanDataset, get_clean_test
-from src.reverse_attack import reverse_pgd, clamp
+from src.reverse_attack import reverse_pgd
 
 import torch
 from torch.utils.data import DataLoader
