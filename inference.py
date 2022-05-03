@@ -2,12 +2,12 @@ from email.mime import base
 import os
 from argparse import ArgumentParser
 import numpy as np
-from loss import clamp
+from tqdm import tqdm
 
 from src.model import WideResNet_2, WRN34_out_branch
 from src.common import trim_dict
 from src.dataset import CleanDataset, get_clean_test
-from src.reverse_attack import reverse_pgd
+from src.reverse_attack import reverse_pgd, clamp
 
 import torch
 from torch.utils.data import DataLoader
@@ -19,13 +19,13 @@ if __name__ == '__main__':
     argparser.add_argument('--task', type=str, default="default", help="task type: [default|SSL]")
     argparser.add_argument("--norm", type=str, default="l_2", help='norm type: [clean|l_1|l_2|l_inf]')
     argparser.add_argument("--iter", type=int, default=5, help="number of SSL iteration: [5|10|15]")
-    argparser.add_argument("--batchsize",   type=int, default=512)
+    argparser.add_argument("--batchsize",   type=int, default=256)
     argparser.add_argument("--attack_iter", type=int, default=10)
     argparser.add_argument("--epsilon",     type=int, default=8)
     argparser.add_argument("--alpha",       type=int, default=2)
     args = argparser.parse_args()
 
-    base_model = WideResNet_2(depth=28, widen_factor=10, single=True)
+    base_model = WideResNet_2(depth=28, widen_factor=10, single=True if args.task=='default' else False)
     state_dict_path = "./weight/cifar10_rst_adv.pt.ckpt"
     
     if not os.path.isfile(state_dict_path):
@@ -62,6 +62,7 @@ if __name__ == '__main__':
     if task == 'default':
         # doing inference without self-supervised head
         base_model = base_model.to(device)
+        base_model.eval()
         
         test_loss = 0
         test_acc  = 0
@@ -86,9 +87,14 @@ if __name__ == '__main__':
     else:
         # perform inference with self-supervision
         contrastive_head = WRN34_out_branch()
-        head_state_path = './weight/contrastive_head.h5'
-        contrastive_head.load_state_dict(torch.load(head_state_path))
+        head_state_path = "./weight/ssl_model_130.pth"#'./weight/contrastive_head.h5'
+        state_info = trim_dict(torch.load(head_state_path)['ssl_model'])
+        contrastive_head.load_state_dict(state_info)
         contrastive_head = contrastive_head.to(device)
+        base_model = base_model.to(device)
+        
+        contrastive_head.eval()
+        base_model.eval()
         
         # script transform
         transform = torch.nn.Sequential(
@@ -108,8 +114,10 @@ if __name__ == '__main__':
         test_acc  = 0
         counter   = 0
 
-        print("Start SSL inference")
-        for x, y in test_loader:
+        i = 0
+        tbar = tqdm(test_loader)
+        for x, y in tbar:
+            i += 1
             x = x.to(device, non_blocking=True)
             y = y.to(device, non_blocking=True)
 
@@ -121,20 +129,23 @@ if __name__ == '__main__':
                                   epsilon, 
                                   alpha, 
                                   attack_iters, 
-                                  norm='l_2', 
+                                  norm=args.norm, 
                                   n_views=2)
             
             x = x + r_delta
-            x = clamp(x, 0, 1)
+            #x = clamp(x, 0, 1)
 
             with torch.no_grad():
-                pred = base_model(x)
+                pred, _ = base_model(x)
                 loss = criterion(pred, y)
                 
                 _, out    = torch.max(pred, dim=-1)
                 test_acc  += (out == y).sum().item()
                 test_loss += loss.item()*pred.shape[0]
                 counter   += pred.shape[0]
+            
+            torch.cuda.empty_cache()
+            tbar.set_description(f"[{i}/{len(test_loader)}]test_acc = {test_acc/counter:.2f}, test_loss = {test_loss/counter:.4f}")
             
         test_loss /= counter
         test_acc  /= counter

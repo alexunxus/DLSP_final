@@ -1,5 +1,5 @@
 import torch
-from loss import compute_contrastive_loss
+from .loss import compute_contrastive_loss
 
 upper_limit, lower_limit = 1,0
 
@@ -46,14 +46,15 @@ def reverse_pgd(base_model, contrastive_head, scripted_transforms, criterion,
         new_x = X + delta
         
         # TODO: here the neg sample is fixed, we can also try random neg sample to enlarge and diversify
-        loss = -compute_contrastive_loss(new_x, 
-                                         base_model, 
-                                         contrastive_head, 
-                                         scripted_transforms, 
-                                         criterion, 
-                                         n_views = n_views, 
-                                         no_grad = False )
-
+        loss, _ = compute_contrastive_loss(new_x, 
+                                           base_model, 
+                                           contrastive_head, 
+                                           scripted_transforms, 
+                                           criterion, 
+                                           n_views = n_views, 
+                                           no_grad = False )
+        loss = -loss
+        
         loss.backward()
         grad = delta.grad.detach()
 
