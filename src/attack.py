@@ -11,10 +11,6 @@ from common import trim_dict, clamp, Batches
 
 import torch
 import torch.nn.functional as F
-from torchvision import transforms
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 
 def attack_pgd(model, X, y, epsilon, alpha, attack_iters, restarts,
@@ -80,7 +76,9 @@ def attack_pgd(model, X, y, epsilon, alpha, attack_iters, restarts,
 
 def attack_pgd_main(args):
 
-    test_set = torchvision.datasets.CIFAR10(root="cifar-10-batches-py", 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    test_set = torchvision.datasets.CIFAR10(root="./data/cifar10/", 
                                             train=False, download=True)
     
     cifar_test = {'data': test_set.data, 'labels': test_set.targets}
@@ -91,7 +89,7 @@ def attack_pgd_main(args):
     
     test_batches = Batches(test_set, 64, shuffle=False, num_workers=2)
     base_model = WideResNet_2(depth=28, widen_factor=10)
-    state_dict_path = "/content/DLSP_final/weight/cifar10_rst_adv.pt.ckpt"
+    state_dict_path = "./weight/cifar10_rst_adv.pt.ckpt"
     if not os.path.isfile(state_dict_path):
         raise ValueError(
             f"Please download the model weight from https://cv.cs.columbia.edu/mcz/ICCVRevAttack/cifar10_rst_adv.pt.ckpt")
@@ -119,10 +117,13 @@ def attack_pgd_main(args):
     testy = torch.cat(testy, dim = 0)
     all_delta = torch.cat(all_delta, dim = 0)
     new_test = torch.cat(new_test, dim = 0)
-    print(all_delta.size())
-    np.save('../data/Test_perturbed_X_{}_{}.npy'.format(args.norm,str(args.attack_iters)), new_test.to('cpu')) 
-    np.save('../data/Test_perturbed_y_{}_{}.npy'.format(args.norm,str(args.attack_iters)),testy.to('cpu'))
-    return
+
+    base_path = os.path.join(args.savepath, f"{args.norm}/")
+    if not os.path.isdir(base_path):
+        os.makedirs(base_path)
+
+    np.save(os.path.join(base_path, f"Test_perturbed_X_{args.norm}_{args.attack_iters}.npy"), new_test.to('cpu')) 
+    np.save(os.path.join(base_path, f"Test_perturbed_y_{args.norm}_{args.attack_iters}.npy"), testy.to('cpu')) 
 
 
 if __name__ == "__main__":
@@ -136,6 +137,7 @@ if __name__ == "__main__":
     argparser.add_argument('--restarts', default=1, type=int)
     argparser.add_argument('--norm', default='l_2', type=str, choices=['l_inf', 'l_2', 'l_1'])
     argparser.add_argument('--eval', action='store_true')
+    argparser.add_argument('--savepath', type=str, default="./data/")
     args = argparser.parse_args()
     print(args.epsilon/255., args.pgd_alpha/255., args.attack_iters, args.restarts, args.norm,args.eval)
     attack_pgd_main(args)
