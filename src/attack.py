@@ -120,6 +120,9 @@ def attack_pgd_main(args):
     all_delta = torch.cat(all_delta, dim = 0)
     new_test = torch.cat(new_test, dim = 0)
     print(all_delta.size())
+    
+    basepath = os.path.join(args.savepath, )
+    
     np.save('../data/Test_perturbed_X_{}_{}.npy'.format(args.norm,str(args.attack_iters)), new_test.to('cpu')) 
     np.save('../data/Test_perturbed_y_{}_{}.npy'.format(args.norm,str(args.attack_iters)),testy.to('cpu'))
     return
@@ -136,6 +139,7 @@ if __name__ == "__main__":
     argparser.add_argument('--restarts', default=1, type=int)
     argparser.add_argument('--norm', default='l_2', type=str, choices=['l_inf', 'l_2', 'l_1'])
     argparser.add_argument('--eval', action='store_true')
+    argparser.add_argument('--savepath', type=str, default ="./data/")
     args = argparser.parse_args()
     print(args.epsilon/255., args.pgd_alpha/255., args.attack_iters, args.restarts, args.norm,args.eval)
     attack_pgd_main(args)
