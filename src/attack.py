@@ -129,7 +129,6 @@ def attack_pgd_main(args):
     np.save(os.path.join(base_path, f"Test_perturbed_X_{args.norm}_{args.attack_iters}.npy"), new_test.to('cpu')) 
     np.save(os.path.join(base_path, f"Test_perturbed_y_{args.norm}_{args.attack_iters}.npy"), testy.to('cpu')) 
 
-
 if __name__ == "__main__":
     argparser = ArgumentParser()
     argparser.add_argument('--epsilon', default=8, type=int)
