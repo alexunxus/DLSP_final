@@ -55,7 +55,15 @@ You can specify number of iterations for pgd attack.
 
 ### Creating adversarial test datasets using pgd and Visualization
 
-`TODO: provide some viusalization example`
+We use the adversarial strength epsilon = 8 to perturbe the images, the images are shown from iteration=0, 5, 10 and 15 from left to right.  
+
+![plot](./figures/attack_cmp.jpg)
+
+We can see the perturbation is invisible to human eyes
+
+The test loss for the attack as a function of perturbation iteration is shown below:
+
+![plot](./figures/attack_curve.jpg)
 
 ## Part 3: Train Self-Supervised Head
 Command:
