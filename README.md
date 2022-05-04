@@ -65,6 +65,8 @@ The test loss for the attack as a function of perturbation iteration is shown be
 
 ![plot](./figures/attack_curve.jpg)
 
+The blue curve is for L-infinity, orange one L2, green one L1. 
+
 ## Part 3: Train Self-Supervised Head
 Command:
 ```
