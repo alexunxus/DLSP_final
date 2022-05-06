@@ -206,4 +206,4 @@ if __name__ == '__main__':
         test_loss /= counter
         test_acc  /= counter
 
-        print(f"Reverse Attack Test[{args.norm}][{args.iter}] loss = {test_loss:.4f}, acc = {test_acc*100:.2f}%")
+        print(f"SSL Reverse Attack Test[{args.norm}][{args.iter}] loss = {test_loss:.4f}, acc = {test_acc*100:.2f}%")
