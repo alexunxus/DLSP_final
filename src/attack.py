@@ -152,4 +152,5 @@ if __name__ == "__main__":
     if args.norm == 'all':
         for norm in ['l_inf', 'l_2', 'l_1']:
             attack_pgd_main(args, norm)
-    
+    else:
+        attack_pgd_main(args, args.norm)
