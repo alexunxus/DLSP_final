@@ -68,7 +68,7 @@ if __name__ == '__main__':
     device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
 
     task = args.task
-    if task not in ['default', 'SSL']:
+    if task not in ['default', 'SSL', 'random']:
         raise ValueError(f"Unknown task {task}")
     if task == 'default':
         # doing inference without self-supervised head
@@ -95,6 +95,37 @@ if __name__ == '__main__':
         test_acc  /= counter
 
         print(f"Test[{args.norm}][{args.iter}] loss = {test_loss:.4f}, acc = {test_acc*100:.2f}")
+    elif args.task == 'random':
+        # doing inference without self-supervised head
+        base_model = base_model.to(device)
+        base_model.eval()
+        
+        test_loss = 0
+        test_acc  = 0
+        counter   = 0
+        epsilon      = args.epsilon/255.
+        alpha        = args.alpha/255.
+
+        for x, y in test_loader:
+            delta = torch.zeros_like(x)
+            delta.uniform_(-epsilon, epsilon)
+            x += delta
+
+            x = x.to(device, non_blocking=True)
+            y = y.to(device, non_blocking=True)
+            with torch.no_grad():
+                pred = base_model(x)
+                loss = criterion(pred, y)
+                
+                _, out    = torch.max(pred, dim=-1)
+                test_acc  += (out == y).sum().item()
+                test_loss += loss.item()*pred.shape[0]
+                counter   += pred.shape[0]
+            
+        test_loss /= counter
+        test_acc  /= counter
+
+        print(f"Test Random[{args.norm}][{args.iter}] loss = {test_loss:.4f}, acc = {test_acc*100:.2f}")
     else:
         # perform inference with self-supervision
         contrastive_head = WRN34_out_branch()
