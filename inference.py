@@ -13,11 +13,17 @@ from src.loss import compute_contrastive_loss
 import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
+from torch.backends import cudnn
 from torchvision import transforms
+
+## accelerate computation
+cudnn.benchmark = True
+torch.manual_seed(0)
+np.random.seed(0)
 
 if __name__ == '__main__':
     argparser = ArgumentParser()
-    argparser.add_argument('--task', type=str, default="default", help="task type: [default|SSL]")
+    argparser.add_argument('--task', type=str, default="default", help="task type: [default|SSL|random]")
     argparser.add_argument("--norm", type=str, default="l_2", help='norm type: [clean|l_1|l_2|l_inf]')
     argparser.add_argument("--iter", type=int, default=5, help="number of SSL iteration: [5|10|15]")
     argparser.add_argument("--batchsize",   type=int, default=256)
@@ -47,6 +53,10 @@ if __name__ == '__main__':
         data_base_dir = f"data/pgd/{args.norm}/"
         test_x = np.load(os.path.join(data_base_dir, f"test_perturbed_X_{args.norm}_{args.iter}.npy"))
         test_y = np.load(os.path.join(data_base_dir, f"test_perturbed_y_{args.norm}_{args.iter}.npy"))
+        
+        p = np.random.permutation(test_x.shape[0])
+        test_x = test_x[p]
+        test_y = test_y[p]
 
         test_dataset = CleanDataset(X= test_x, y = test_y)
         test_loader  = DataLoader(test_dataset, batch_size= args.batchsize, shuffle=False, pin_memory=True, num_workers=4)
