@@ -1,9 +1,12 @@
+# Self defined
+data/
+weight/
+*.ipynb
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-data/
-weight/
 
 # C extensions
 *.so

@@ -1,3 +1,4 @@
+import math
 import torch
 from .loss import compute_contrastive_loss
 
@@ -40,9 +41,12 @@ def reverse_pgd(base_model, contrastive_head, scripted_transforms, criterion,
 
     delta = clamp(delta, lower_limit-X, upper_limit-X)
     delta.requires_grad = True
+    
+    best_loss = -math.inf
+    max_delta = torch.zeros_like(delta, requires_grad=False)
 
     for _ in range(attack_iters):
-
+        
         new_x = X + delta
         
         # TODO: here the neg sample is fixed, we can also try random neg sample to enlarge and diversify
@@ -54,6 +58,11 @@ def reverse_pgd(base_model, contrastive_head, scripted_transforms, criterion,
                                            n_views = n_views, 
                                            no_grad = False )
         loss = -loss
+        
+        # greedily pick the best loss
+        if loss.item() > best_loss:
+            best_loss = loss.item()
+            max_delta = delta.data
         
         loss.backward()
         grad = delta.grad.detach()
@@ -71,10 +80,11 @@ def reverse_pgd(base_model, contrastive_head, scripted_transforms, criterion,
             g_norm = torch.sum(torch.abs(g.view(g.shape[0], -1)), dim=1).view(-1, 1, 1, 1)
             scaled_g = g / (g_norm + 1e-10)
             d = (d + scaled_g * alpha).view(d.size(0), -1).renorm(p=1, dim=0, maxnorm=epsilon).view_as(d)
-
-        d = clamp(d, lower_limit - x, upper_limit - x)
+        
+        # yunyun suggest not to clamp the image
+        #d = clamp(d, lower_limit - x, upper_limit - x)
         delta.data = d
         delta.grad.zero_()
-    max_delta = delta.detach()
+    # max_delta = delta.detach()
     
     return max_delta

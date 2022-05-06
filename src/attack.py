@@ -119,7 +119,7 @@ def attack_pgd_main(args, norm):
 
     testX = []
     testy = []
-    new_test = {i: [] for i in np.arange(0, args.attack_iters, 5)}
+    new_test = []
     for i, batch in enumerate(test_batches):
         X,y = batch['input'],batch['target']
         testX.append(X)

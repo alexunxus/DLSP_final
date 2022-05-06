@@ -8,6 +8,7 @@ from src.model import WideResNet_2, WRN34_out_branch
 from src.common import trim_dict
 from src.dataset import CleanDataset, get_clean_test
 from src.reverse_attack import reverse_pgd
+from src.loss import compute_contrastive_loss
 
 import torch
 from torch.utils.data import DataLoader
@@ -20,7 +21,7 @@ if __name__ == '__main__':
     argparser.add_argument("--norm", type=str, default="l_2", help='norm type: [clean|l_1|l_2|l_inf]')
     argparser.add_argument("--iter", type=int, default=5, help="number of SSL iteration: [5|10|15]")
     argparser.add_argument("--batchsize",   type=int, default=256)
-    argparser.add_argument("--attack_iter", type=int, default=10)
+    argparser.add_argument("--attack_iter", type=int, default=5)
     argparser.add_argument("--epsilon",     type=int, default=8)
     argparser.add_argument("--alpha",       type=int, default=2)
     args = argparser.parse_args()
@@ -43,9 +44,9 @@ if __name__ == '__main__':
         test_dataset = get_clean_test()
         test_loader  = DataLoader(test_dataset, batch_size= args.batchsize, shuffle=False, pin_memory=True, num_workers=4)
     else:
-        data_base_dir = f"data/Perturbed_data/{args.norm}/"
-        test_x = np.load(os.path.join(data_base_dir, f"Test_perturbed_X_{args.norm}_{args.iter}.npy"))
-        test_y = np.load(os.path.join(data_base_dir, f"Test_perturbed_y_{args.norm}_{args.iter}.npy"))
+        data_base_dir = f"data/pgd/{args.norm}/"
+        test_x = np.load(os.path.join(data_base_dir, f"test_perturbed_X_{args.norm}_{args.iter}.npy"))
+        test_y = np.load(os.path.join(data_base_dir, f"test_perturbed_y_{args.norm}_{args.iter}.npy"))
 
         test_dataset = CleanDataset(X= test_x, y = test_y)
         test_loader  = DataLoader(test_dataset, batch_size= args.batchsize, shuffle=False, pin_memory=True, num_workers=4)
@@ -87,9 +88,16 @@ if __name__ == '__main__':
     else:
         # perform inference with self-supervision
         contrastive_head = WRN34_out_branch()
-        head_state_path = "./weight/ssl_model_130.pth"#'./weight/contrastive_head.h5'
+        
+        # if load official weight
+        head_state_path = "./weight/ssl_model_130.pth"
         state_info = trim_dict(torch.load(head_state_path)['ssl_model'])
         contrastive_head.load_state_dict(state_info)
+        
+        # if load self-trained weight
+        #head_state_path = './weight/contrastive_head.h5'
+        #state_info = torch.load(head_state_path)
+        #contrastive_head.load_state_dict(state_info)
         contrastive_head = contrastive_head.to(device)
         base_model = base_model.to(device)
         
@@ -104,6 +112,14 @@ if __name__ == '__main__':
             transforms.RandomGrayscale(p=0.2)
         )
         scripted_transforms = torch.jit.script(transform)
+        
+        # We use this to allow scripted transforms to be differentiable. Need this due to Pytorch Issue.
+        for i, batch in enumerate(test_loader):
+            x, _ = batch
+            x = x.to(device)
+            contrastive_Loss = \
+                compute_contrastive_loss(x, base_model, contrastive_head, scripted_transforms, criterion)
+            break
 
         # hyperparameter
         epsilon      = args.epsilon/255.
@@ -133,7 +149,6 @@ if __name__ == '__main__':
                                   n_views=2)
             
             x = x + r_delta
-            #x = clamp(x, 0, 1)
 
             with torch.no_grad():
                 pred, _ = base_model(x)
@@ -145,9 +160,9 @@ if __name__ == '__main__':
                 counter   += pred.shape[0]
             
             torch.cuda.empty_cache()
-            tbar.set_description(f"[{i}/{len(test_loader)}]test_acc = {test_acc/counter:.2f}, test_loss = {test_loss/counter:.4f}")
+            tbar.set_description(f"[{i}/{len(test_loader)}]test_acc = {test_acc/counter*100:.2f}%, test_loss = {test_loss/counter:.4f}")
             
         test_loss /= counter
         test_acc  /= counter
 
-        print(f"Reverse Attack Test[{args.norm}][{args.iter}] loss = {test_loss:.4f}, acc = {test_acc*100:.2f}")
+        print(f"Reverse Attack Test[{args.norm}][{args.iter}] loss = {test_loss:.4f}, acc = {test_acc*100:.2f}%")
