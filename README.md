@@ -17,13 +17,16 @@ to the adversarial attack. The author proposed that if we can "correct" the imag
 then we can prove the mutual information between the image and label improves and hence leads to a better performance.
 
 The advantage of this method is that we don't have to retrain the clean classifier, we correct the image at test time
-instead. The main drawback of this method is this method spends more time to perform inference. 
+instead. The main drawback of this method is it takes more time to perform inference. 
 
 Our project can be divided into several part:
 1. Train the clean classifier
 2. Prepare the adversarial dataset
 3. Perform self-supervised learning to train the self-supervised learning head
-4. Perform inference on the adversarial dataset
+4. Visualization for attack/counter attack images
+5. Show the contrastive loss for attacked images and repaired images
+6. Perform inference on the adversarial dataset
+7. Discussion
 
 
 ----------------------------
@@ -84,9 +87,9 @@ python3 inference.py --norm l_inf
 Result: 
 | Perturbation | Accuracy (%) | Test Loss |
 |--------------|--------------|-----------|
-| Clean        | 87.52        | 0.5812    |
-| L1           | 70.47        | 0.8985    |
-| L2           | 10.58        | 5.0381    |
+| Clean        | 89.69        | 0.5263    |
+| L1           | 89.64        | 0.5272    |
+| L2           | 88.71        | 0.5441    |
 | Linf         | 74.08        | 0.8110    |
 
 ## Part 5: Visualize reverse attack vector
@@ -114,6 +117,37 @@ or
 ```
 ./run_all.sh
 ```
+
+### Attack 5 epochs+ counter attack 5 epochs 
+| Perturbation | Baseline Accuracy (%) | Baseline Test Loss | Accuracy(%) | Test Loss |
+|--------------|--------------|-----------|--------------------|------------------|
+| L1           | 89.64        | 0.5272    | 89.64              | 0.5272           |
+| L2           | 88.71        | 0.5441    | 88.70              | 0.5441           |
+| Linf         | 74.08        | 0.8110    | 73.94              | 0.8148           |
+
+### Attack 10 epochs + counter attack 5 epochs
+| Perturbation | Baseline Accuracy (%) | Baseline Test Loss | Robust Accuracy(%) | Robust Test Loss |
+|--------------|--------------|-----------|--------------------|------------------|
+| L1           | 89.58        | 0.5280    | 89.59              | 0.5280           |
+| L2           | 87.74        | 0.5606    | 87.73              | 0.5605           |
+| Linf         | 70.23        | 0.8850    | 70.17              | 0.8885           |
+
+### Attack 15 epochs + counter attack 5 epochs
+| Perturbation | Baseline Accuracy (%) | Baseline Test Loss | Robust Accuracy(%) | Robust Test Loss |
+|--------------|--------------|-----------|--------------------|------------------|
+| L1           | 89.54        | 0.5288    | 89.54              | 0.5288           |
+| L2           | 86.89        | 0.5781    | 86.89              | 0.5780           |
+| Linf         | 70.20        | 0.8888    | 69.96              | 0.8921           |
+
+------------------------------
+## Discussion
+
+The adversarial attack can degrade the performance of the model without being detected by humans eyes. 
+However, the author found the contrastive loss of the corrupted images are worse than the clean one and hence 
+repairing the image by contrastive learning may help to enhance the performance of the original task. 
+
+We observe the image after the attack doesn't really look different from the original image.  
+
 
 ------------------------------
 Using different loss function   
