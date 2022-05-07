@@ -58,18 +58,19 @@ def reverse_pgd(base_model, contrastive_head, scripted_transforms, criterion,
                                            criterion, 
                                            n_views = n_views, 
                                            no_grad = False )
-        if i == 0:
-            closs_adv = loss
         loss = -loss
+        
+        loss.backward()
+        grad = delta.grad.detach()
+
+        if i == 0:
+            closs_adv = -loss.item()
         
         # greedily pick the best loss
         if loss.item() > best_loss:
             best_loss = loss.item()
             max_delta = delta.data
         
-        loss.backward()
-        grad = delta.grad.detach()
-
         d = delta
         g = grad
         if norm == "l_inf":

@@ -1,4 +1,3 @@
-from email.mime import base
 import os
 from argparse import ArgumentParser
 import numpy as np
@@ -57,11 +56,11 @@ if __name__ == '__main__':
         test_dataset = CleanDataset(X= test_x, y = test_y)
         test_loader  = DataLoader(test_dataset, batch_size= args.batchsize, shuffle=False, pin_memory=True, num_workers=4)
     
-    # criterion
-    criterion = nn.CrossEntropyLoss()
-
     # device
     device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
+
+    # criterion
+    criterion = nn.CrossEntropyLoss().to(device)
 
     task = args.task
     if task not in ['default', 'SSL', 'random']:
@@ -206,8 +205,6 @@ if __name__ == '__main__':
         test_loss /= counter
         test_acc  /= counter
 
-        adv_loss = np.concatenate(adv_loss, axis = 0)
-        radv_loss = np.concatenate(radv_loss, axis=0)
         np.save(f'./weight/loss_adv_{args.norm}_{args.iter}', adv_loss)
         np.save(f'./weight/loss_radv_{args.norm}_{args.iter}', radv_loss)
 
