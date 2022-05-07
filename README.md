@@ -119,7 +119,7 @@ or
 ```
 
 ### Attack 5 epochs+ counter attack 5 epochs 
-| Perturbation | Baseline Accuracy (%) | Baseline Test Loss | Accuracy(%) | Test Loss |
+| Perturbation | Baseline Accuracy (%) | Baseline Test Loss | Robust Accuracy(%) | Robust Test Loss |
 |--------------|--------------|-----------|--------------------|------------------|
 | L1           | 89.64        | 0.5272    | 89.64              | 0.5272           |
 | L2           | 88.71        | 0.5441    | 88.70              | 0.5441           |
@@ -138,6 +138,11 @@ or
 | L1           | 89.54        | 0.5288    | 89.54              | 0.5288           |
 | L2           | 86.89        | 0.5781    | 86.89              | 0.5780           |
 | Linf         | 70.20        | 0.8888    | 69.96              | 0.8921           |
+
+### Attack 50 epochs + counter attack 5 epochs
+| Perturbation | Baseline Accuracy (%) | Baseline Test Loss | Robust Accuracy(%) | Robust Test Loss |
+|--------------|--------------|-----------|--------------------|------------------|
+| L2           | 86.89        | 0.5781    | 86.89              | 0.5780           |
 
 ------------------------------
 ## Discussion
