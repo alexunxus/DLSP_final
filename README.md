@@ -89,16 +89,31 @@ Result:
 | L2           | 10.58        | 5.0381    |
 | Linf         | 74.08        | 0.8110    |
 
-## Part 5: Inference with SSL
+## Part 5: Visualize reverse attack vector
+
+![plot](./figures/attack_rev_vec.png)
+
+The above graph shows while projected gradient descent can attack on some crucial parts such as eyes and contours, the reverse attack vector is trying to repair the image by adding some information especailly on these crucial portion.
+
+## Part 6: Contrastive loss distribution before and after the attack
+
+![plot](./figures/loss_compare.png)
+
+The x-axis of the figure shows the distribution of contrastive loss of a batch of images with adversarial attacks. The y values are the corresponding loss for the batch of images with counter-attacks. We can see that the contrastive loss is always improving as we perform the counter-attack.
+
+## Part 6: Inference with SSL
 ```
 python3 inference.py --task SSL --norm clean
 python3 inference.py --task SSL --norm l_1
 python3 inference.py --task SSL --norm l_2
 python3 inference.py --task SSL --norm l_inf
 ```
+or
+```
+./run_all.sh
+```
 
-
-
+------------------------------
 Using different loss function   
 
 `TODO: should provide a graph`  
@@ -106,3 +121,8 @@ Using different loss function
 Using different batch size(i.e. number of negative example)  
 
 `TODO: should provide a graph`  
+
+------------------------------
+## Reference materials:
+1. Adversarial Attacks are Reversible with Natural Supervision: https://arxiv.org/abs/2103.14222
+2. A Simple Framework for Contrastive Learning of Visual Representations: https://arxiv.org/abs/2002.05709
