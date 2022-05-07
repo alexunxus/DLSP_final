@@ -91,7 +91,9 @@ Result:
 
 ## Part 5: Visualize reverse attack vector
 
-![plot](./figures/attack_rev_vec.png)
+![plot](./figures/show_rev_vec.png)
+
+The arrangement of the figure is as described: origianl image --> normalized adversarial attack noise --> attacked image --> normalized reverse attack vector --> recovered image.
 
 The above graph shows while projected gradient descent can attack on some crucial parts such as eyes and contours, the reverse attack vector is trying to repair the image by adding some information especailly on these crucial portion.
 
