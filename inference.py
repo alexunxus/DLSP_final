@@ -208,4 +208,7 @@ if __name__ == '__main__':
         np.save(f'./weight/loss_adv_{args.norm}_{args.iter}', adv_loss)
         np.save(f'./weight/loss_radv_{args.norm}_{args.iter}', radv_loss)
 
+        with open(f"./weight/loss_{args.norm}_{args.iter}.txt", 'w+') as f:
+            f.write(f"{test_loss}:{test_acc}")
+            
         print(f"SSL Reverse Attack Test[{args.norm}][{args.iter}] loss = {test_loss:.4f}, acc = {test_acc*100:.2f}%")
