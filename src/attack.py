@@ -1,6 +1,7 @@
 import os
 from argparse import ArgumentParser
 import numpy as np
+from tqdm import tqdm
 
 from common import trim_dict, clamp, Batches
 from model import WideResNet_2
@@ -101,7 +102,7 @@ def attack_pgd_main(args, norm):
     
     # prepare model
     test_batches = Batches(test_set, 64, shuffle=False, num_workers=2)
-    base_model = WideResNet_2(depth=28, widen_factor=10)
+    base_model   = WideResNet_2(depth=28, widen_factor=10)
     state_dict_path = "./weight/cifar10_rst_adv.pt.ckpt"
     if not os.path.isfile(state_dict_path):
         raise ValueError(
@@ -120,7 +121,7 @@ def attack_pgd_main(args, norm):
     testX = []
     testy = []
     new_test = []
-    for i, batch in enumerate(test_batches):
+    for i, batch in tqdm(enumerate(test_batches)):
         X,y = batch['input'],batch['target']
         testX.append(X)
         testy.append(y)
@@ -147,7 +148,6 @@ if __name__ == "__main__":
     argparser.add_argument('--eval', action='store_true')
     argparser.add_argument('--savepath', type=str, default="./data/")
     args = argparser.parse_args()
-    print(args.epsilon, args.pgd_alpha, args.attack_iters, args.restarts, args.norm,args.eval)
     
     if args.norm == 'all':
         for norm in ['l_inf', 'l_2', 'l_1']:

@@ -170,6 +170,8 @@ if __name__ == '__main__':
         test_loss = 0
         test_acc  = 0
         counter   = 0
+        adv_loss  = []
+        radv_loss = []
 
         i = 0
         tbar = tqdm(test_loader)
@@ -178,18 +180,20 @@ if __name__ == '__main__':
             x = x.to(device, non_blocking=True)
             y = y.to(device, non_blocking=True)
 
-            r_delta = reverse_pgd(base_model, 
-                                  contrastive_head, 
-                                  scripted_transforms, 
-                                  criterion,
-                                  x,
-                                  epsilon, 
-                                  alpha, 
-                                  attack_iters, 
-                                  norm=args.norm, 
-                                  n_views=2)
+            r_delta, best_loss, init_loss = reverse_pgd(base_model, 
+                                                        contrastive_head, 
+                                                        scripted_transforms, 
+                                                        criterion,
+                                                        x,
+                                                        epsilon, 
+                                                        alpha, 
+                                                        attack_iters, 
+                                                        norm=args.norm, 
+                                                        n_views=2)
             
             x = x + r_delta
+            adv_loss.append(init_loss)
+            radv_loss.append(best_loss)
 
             with torch.no_grad():
                 pred, _ = base_model(x)
@@ -205,5 +209,10 @@ if __name__ == '__main__':
             
         test_loss /= counter
         test_acc  /= counter
+
+        adv_loss = np.concatenate(adv_loss, axis = 0)
+        radv_loss = np.concatenate(radv_loss, axis=0)
+        np.save(f'./weight/loss_adv_{args.norm}_{args.iter}', adv_loss)
+        np.save(f'./weight/loss_radv_{args.norm}_{args.iter}', radv_loss)
 
         print(f"SSL Reverse Attack Test[{args.norm}][{args.iter}] loss = {test_loss:.4f}, acc = {test_acc*100:.2f}%")
