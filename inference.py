@@ -88,6 +88,9 @@ if __name__ == '__main__':
             
         test_loss /= counter
         test_acc  /= counter
+        
+        with open(f"./weight/loss_{args.norm}.txt", 'w+') as f:
+            f.write(f"{test_loss}:{test_acc}")
 
         print(f"Test[{args.norm}][{args.iter}] loss = {test_loss:.4f}, acc = {test_acc*100:.2f}")
     elif args.task == 'random':
