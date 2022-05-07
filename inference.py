@@ -53,10 +53,6 @@ if __name__ == '__main__':
         data_base_dir = f"data/pgd/{args.norm}/"
         test_x = np.load(os.path.join(data_base_dir, f"test_perturbed_X_{args.norm}_{args.iter}.npy"))
         test_y = np.load(os.path.join(data_base_dir, f"test_perturbed_y_{args.norm}_{args.iter}.npy"))
-        
-        p = np.random.permutation(test_x.shape[0])
-        test_x = test_x[p]
-        test_y = test_y[p]
 
         test_dataset = CleanDataset(X= test_x, y = test_y)
         test_loader  = DataLoader(test_dataset, batch_size= args.batchsize, shuffle=False, pin_memory=True, num_workers=4)
@@ -114,7 +110,7 @@ if __name__ == '__main__':
             x = x.to(device, non_blocking=True)
             y = y.to(device, non_blocking=True)
             with torch.no_grad():
-                pred = base_model(x)
+                pred, hidden = base_model(x)
                 loss = criterion(pred, y)
                 
                 _, out    = torch.max(pred, dim=-1)
@@ -125,7 +121,7 @@ if __name__ == '__main__':
         test_loss /= counter
         test_acc  /= counter
 
-        print(f"Test Random[{args.norm}][{args.iter}] loss = {test_loss:.4f}, acc = {test_acc*100:.2f}")
+        print(f"Test Random Reverse Attack: [{args.norm}][{args.iter}] loss = {test_loss:.4f}, acc = {test_acc*100:.2f}")
     else:
         # perform inference with self-supervision
         contrastive_head = WRN34_out_branch()
