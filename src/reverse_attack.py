@@ -44,8 +44,9 @@ def reverse_pgd(base_model, contrastive_head, scripted_transforms, criterion,
     
     best_loss = -math.inf
     max_delta = torch.zeros_like(delta, requires_grad=False)
+    closs_adv = 0
 
-    for _ in range(attack_iters):
+    for i in range(attack_iters):
         
         new_x = X + delta
         
@@ -57,6 +58,8 @@ def reverse_pgd(base_model, contrastive_head, scripted_transforms, criterion,
                                            criterion, 
                                            n_views = n_views, 
                                            no_grad = False )
+        if i == 0:
+            closs_adv = loss
         loss = -loss
         
         # greedily pick the best loss
@@ -69,7 +72,6 @@ def reverse_pgd(base_model, contrastive_head, scripted_transforms, criterion,
 
         d = delta
         g = grad
-        x = X
         if norm == "l_inf":
             d = torch.clamp(d + alpha * torch.sign(g), min=-epsilon, max=epsilon)
         elif norm == "l_2":
@@ -87,4 +89,4 @@ def reverse_pgd(base_model, contrastive_head, scripted_transforms, criterion,
         delta.grad.zero_()
     # max_delta = delta.detach()
     
-    return max_delta
+    return max_delta, -best_loss, closs_adv
