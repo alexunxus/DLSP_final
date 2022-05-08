@@ -10,7 +10,8 @@ Machine learning robustness is now a popular topic in computer vision. In this p
 techniques: **self-supervised learning**(SSL) and **contrastive loss** to improve model's performance on corrupted 
 datasets at **inference time**.
 
-We reimplemented the paper *Adversarial Attacks are Reversible with Natural Supervision* by Chengzhi Mao et al. 
+We follow the concept from the paper *Adversarial Attacks are Reversible with Natural Supervision* by Chengzhi Mao et al and 
+to implement the self-supervised reverse attack from scratch. 
 The basic idea is that adversarial attack can greatly corrupt the mutual information between the similar input image pairs. 
 In addition, an increase in contrastive loss between augmentations of the same image is observed due to the adversarial attack. 
 The author proposed that "correcting" the image through self-supervised learning can resume the mutual information between 
