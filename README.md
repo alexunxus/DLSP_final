@@ -11,10 +11,10 @@ techniques: **self-supervised learning**(SSL) and **contrastive loss** to improv
 datasets at **inference time**.
 
 We reimplemented the paper *Adversarial Attacks are Reversible with Natural Supervision* by Chengzhi Mao et al. 
-The basic idea is that adversarial attack can greatly decrease the mutual information between the input data and
-the label. In addition, an increase in contrastive loss between augmentations of the same image is observed due 
-to the adversarial attack. The author proposed that if we can "correct" the image through self-supervised learning,
-then we can prove the mutual information between the image and label improves and hence leads to a better performance.
+The basic idea is that adversarial attack can greatly corrupt the mutual information between the similar input image pairs. 
+In addition, an increase in contrastive loss between augmentations of the same image is observed due to the adversarial attack. 
+The author proposed that "correcting" the image through self-supervised learning can resume the mutual information between 
+the image and label and hence leads to a better performance.
 
 The advantage of this method is that we don't have to retrain the clean classifier, we correct the image at test time
 instead. The main drawback of this method is it takes more time to perform inference. 
@@ -32,20 +32,31 @@ Our project can be divided into several part:
 ----------------------------
 # Implementation Details
 
+## Part 0: System details:
+
+We train our model with four v4 CPU, one T4 GPU on Google cloud platform with PyTorch 1.11 images. We train our self-supervised head for 50 epochs 
+with Adam optimizer and a learning rate of 0.0001. We use multistep scheduler to decrease the learning rate by 10 at 25 and 37 epochs 
+respectively. 
+
+We use CIFAR10 test dataset as the source dataset and using the projected gradient descent to corrupt the dataset with different norm 
+(l1, l2, linf) and attack budgets (i.e. attack for 5, 10, 15, 50 iterations). 
+
+At inference time, we evaluate the performance of the model using the above corrupted dataset with a counter attack budget of 5 iterations
+per batch of images. 
+
 ## Part 1: Train the clean classifier
 Train the clean classifier using wide-resnet34  
-The weight can be downloaded by
+The weight can be obtained by
 
 ```
 mkdir weight
 cd weight/
 wget https://cv.cs.columbia.edu/mcz/ICCVRevAttack/cifar10_rst_adv.pt.ckpt
 ```
-It is the weight of a state-of-the-art counter-attack model from the paper *Are 
-labels required for improving adversarial robustness?*.
+This is the weight of a state-of-the-art counter-attack model from the paper *Are labels required for improving adversarial robustness?*.
 
 ## Part 2: Create adversarial dataset
-We adopt projected gradient descent to generate the adversarial attacks on test images and 
+We use projected gradient descent(PGD) as our default attack method to generate the adversarial attacks on test images and 
 store them in a temporary folder `./data/pgd/`
 ```
 python3 src/attack.py --attack_iters 5 --norm l_1
@@ -56,15 +67,15 @@ or
 ```
 python3 src/attack.py --attack_iters 5 --norm all
 ```
-You can specify number of iterations for pgd attack.
+You can specify number of iterations for PGD attack.
 
 ### Creating adversarial test datasets using pgd and Visualization
 
-We use the adversarial strength epsilon = 8 to perturbe the images, the images are shown from iteration=0, 5, 10 and 15 from left to right.  
+We choose an adversarial strength epsilon = 8/255 to perturbe the images with L-infinity norm, epsilon=256/255 for L-2 norm. The corrupted images are shown from iteration=0, 5, 10 and 15 from left to right.
 
 ![plot](./figures/attack_cmp.jpg)
 
-We can see the perturbation is invisible to human eyes
+The perturbation is nearly imperceptible to human eyes
 
 The test loss for the attack as a function of perturbation iteration is shown below:
 
@@ -73,6 +84,9 @@ The test loss for the attack as a function of perturbation iteration is shown be
 The blue curve is for L-infinity, orange one L2, green one L1. 
 
 ## Part 3: Train Self-Supervised Head
+We use the encoder part of wideresnet28 and the self-supervised head to tain on contrastive learning task. The weight for the 
+encoder is fixed because there is another downstream task(classification) afther the encoder.
+
 Command:
 ```
 python3 train.py --task SSL
@@ -190,3 +204,6 @@ methods are more favorable than this one.
 1. Adversarial Attacks are Reversible with Natural Supervision: https://arxiv.org/abs/2103.14222
 2. A Simple Framework for Contrastive Learning of Visual Representations: https://arxiv.org/abs/2002.05709
 3. Are labels required for improving adversarial robustness? https://arxiv.org/abs/1905.13725
+4. Overfitting in adversarially robust deep learning https://arxiv.org/pdf/2002.11569.pdf
+5. BAG OF TRICKS FOR ADVERSARIAL TRAININ https://arxiv.org/pdf/2010.00467.pdf
+6. IMPROVING ADVERSARIAL ROBUSTNESS REQUIRES REVISITING MISCLASSIFIED EXAMPLES https://openreview.net/pdf?id=rklOg6EFwS
