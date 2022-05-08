@@ -106,7 +106,7 @@ The above graph shows while projected gradient descent can attack on some crucia
 
 ![plot](./figures/loss_compare.png)
 
-The x-axis of the figure shows the distribution of contrastive loss of a batch of images with adversarial attacks. The y values are the corresponding loss for the batch of images with counter-attacks. We can see that the contrastive loss is always improving as we perform the counter-attack.
+The x-axis of the figure shows the distribution of contrastive loss of batches of test images without correction. The y values are the corresponding loss for thosse with counter-attacks. We note that the contrastive loss is always improving as we perform the counter-attack.
 
 ## Part 6: Inference with SSL
 ```
@@ -154,11 +154,36 @@ the robust accuracy means we correct the image throught natural supervision and 
 ## Discussion
 
 The adversarial attack can degrade the performance of the model without being detected by humans eyes. 
-However, the author found the contrastive loss of the corrupted images are worse than the clean one and hence 
+However, the author of the paper found the contrastive loss of the corrupted images are worse than the clean one and hence 
 repairing the image by contrastive learning may help to enhance the performance of the original task. 
 
-We observe the image after the attack doesn't really look different from the original image. However, the 
-performance drop is significant. 
+We utilized the SimCLR architecture with 4 different augmentations to perform contrastive learning and restored the intrinsic structure
+of the data at inference time. The result shows improvements in some of the corrupted dataset. With a different perturbation budget,
+the gain from this method may vary but this method usually yields at a comparable performance. 
+
+We tried many different hyperparameters to evaluate the effectiveness of this method, including changing perturbation scale epsilon/the 
+iterations of projected gradient descent/the iteration of self-supervised repair. I would say tackling the adversarial attack is never 
+an easy task. We failed for many times and found many tricky details in the implementation part. The main obstacles in this project is 
+
+1. to find an appropriate augmentation type(e.g. Gaussian blur usually degrades the performance),
+2. to adopt an memory-efficient contrastive learning pipeline to train the model with few resources,
+3. to provide a great variety of negative examples in comparison with position examples,
+4. to use the correct normalization methods(the baseline model provided by Semi-SL paper is not trained with resnet preprocessing), and
+5. to finetune the appropriate attack and counter-attack budget.
+
+If one does not paying attention to any of the above point, the performance is unlikely to improve.
+
+### Advanage
+Even though the model is not easy to train, this method still provide some benefits. Firstly, the model can be combined with a variety of 
+the state-of-the-art counterattack methods(e.g. Semi-SL, robust overfit, BAG, MART...). The only thins we have to modify is the backbone 
+structure. In addition, the self-supervised head is light-weighted, consisting of only two linear layers, which is easy to train. Finally, 
+the method is performed at inference time, meaning we don't have to retrain the model when we encounter any new test domains.
+
+### Disadvantage
+We noticed that the inference time is usually 40x more than not using the self-supervised correction if we pick a defense budget of 5 iteration.
+It is due to the complexity to compute the gradient and find a noise to minimize contrastive loss. In addition, the improvement we obtained is 
+mostly slightly better and not as remarkable as the author claimed. If the task requires a limited inference budget, then other counter-attack
+methods are more favorable than this one.
 
 ------------------------------
 ## Reference materials:
