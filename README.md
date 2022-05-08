@@ -2,7 +2,7 @@
 
 Team member:  
 1. kh3120 Kuanyao Huang
-2. sm5116 Sujith Reddy Mammidi
+2. sm5116 Sujith Reddy Mamidi
 
 ## Project description
 
@@ -41,6 +41,8 @@ mkdir weight
 cd weight/
 wget https://cv.cs.columbia.edu/mcz/ICCVRevAttack/cifar10_rst_adv.pt.ckpt
 ```
+It is the weight of a state-of-the-art counter-attack model from the paper *Are 
+labels required for improving adversarial robustness?*.
 
 ## Part 2: Create adversarial dataset
 We adopt projected gradient descent to generate the adversarial attacks on test images and 
@@ -118,6 +120,9 @@ or
 ./run_all.sh
 ```
 
+The following baseline accuracy means we use the default state-of-the-art Semi-SL weight to perform inference and 
+the robust accuracy means we correct the image throught natural supervision and use the Semi-SL model to perform inference.
+
 ### Attack 5 epochs+ counter attack 5 epochs 
 | Perturbation | Baseline Accuracy (%) | Baseline Test Loss | Robust Accuracy(%) | Robust Test Loss |
 |--------------|--------------|-----------|--------------------|------------------|
@@ -159,3 +164,4 @@ performance drop is significant.
 ## Reference materials:
 1. Adversarial Attacks are Reversible with Natural Supervision: https://arxiv.org/abs/2103.14222
 2. A Simple Framework for Contrastive Learning of Visual Representations: https://arxiv.org/abs/2002.05709
+3. Are labels required for improving adversarial robustness? https://arxiv.org/abs/1905.13725
