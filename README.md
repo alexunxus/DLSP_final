@@ -28,6 +28,18 @@ Our project can be divided into several part:
 6. Perform inference on the adversarial dataset
 7. Discussion
 
+## Model Architecture And Training Pipeline
+
+![plot](./figures/backbone.jpg)
+We use the SimCLR architecture as the backbone of the self-supervised correction. We add another head for performing classification.
+
+![plot](./figures/training.jpg)
+We modify the backbone of the SimCLR pipeline by having more augmentations(4). You can even increase the number of branches by the flag
+`--n_views 4`. We do so since we want to provide more positive and negative examples.
+
+![plot](./figures/inference.jpg)
+We minimize the contrastive loss by the added noise tensoer d at test time and return the corrected image x+d. Then we use the repaired
+image to perform inference without modifying any weights of the model.
 
 ----------------------------
 # Implementation Details
