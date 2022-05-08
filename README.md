@@ -152,17 +152,8 @@ The adversarial attack can degrade the performance of the model without being de
 However, the author found the contrastive loss of the corrupted images are worse than the clean one and hence 
 repairing the image by contrastive learning may help to enhance the performance of the original task. 
 
-We observe the image after the attack doesn't really look different from the original image.  
-
-
-------------------------------
-Using different loss function   
-
-`TODO: should provide a graph`  
-
-Using different batch size(i.e. number of negative example)  
-
-`TODO: should provide a graph`  
+We observe the image after the attack doesn't really look different from the original image. However, the 
+performance drop is significant. 
 
 ------------------------------
 ## Reference materials:
