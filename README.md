@@ -17,8 +17,11 @@ In addition, an increase in contrastive loss between augmentations of the same i
 The author proposed that "correcting" the image through self-supervised learning can resume the mutual information between 
 the image and label and hence leads to a better performance.
 
-The advantage of this method is that we don't have to retrain the clean classifier, we correct the image at test time
-instead. The main drawback of this method is it takes more time to perform inference. 
+The advantages of this method are 
+1. we don't have to retrain the clean classifier, we correct the image at test time instead.
+2. The method can be combined with all the other CNN-based counter-attack methods.  
+3. It works as long as the corruption violates constraints of natural manifolds.
+
 
 Our project can be divided into several part:
 1. Train the clean classifier
